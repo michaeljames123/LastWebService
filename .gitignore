@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+*.egg
+build/
+dist/
+.eggs/
+.mypy_cache/
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Backend runtime artifacts
+backend/.venv/
+backend/uploads/
+backend/*.db
+backend/agridronescan.db
+
+# Backend local env files (secrets, API keys)
+backend/.env*
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env*
+
+# Stray/duplicate folders
+frontend/backend/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

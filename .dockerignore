@@ -1,0 +1,22 @@
+.git
+.gitignore
+.vscode
+.idea
+
+# Keep Docker context small (backend-only deploy)
+frontend
+
+# Local/dev artifacts
+backend/.venv
+backend/.env*
+backend/uploads
+backend/*.db
+backend/agridronescan.db
+
+**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+node_modules
+dist
