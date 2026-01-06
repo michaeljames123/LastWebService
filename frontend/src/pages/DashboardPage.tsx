@@ -143,6 +143,32 @@ export default function DashboardPage() {
       ? latestFieldHealth.recommendation
       : null;
   const latestDrone = latestResult?.drone;
+  const latestDetectionsRaw: any[] = Array.isArray(latestResult?.detections)
+    ? (latestResult.detections as any[])
+    : [];
+  const latestPredictions = latestDetectionsRaw
+    .filter((d) => d && typeof d === "object")
+    .map((d, index) => {
+      const anyDet = d as any;
+      const labelValue =
+        anyDet.class_name ??
+        anyDet.label ??
+        anyDet.name ??
+        (typeof anyDet.class_id !== "undefined" ? String(anyDet.class_id) : `Prediction ${index + 1}`);
+      const label = String(labelValue || "").trim() || `Prediction ${index + 1}`;
+
+      let confidence: number | null = null;
+      if (typeof anyDet.confidence === "number") {
+        confidence = anyDet.confidence;
+      } else if (typeof anyDet.confidence === "string") {
+        const parsed = parseFloat(anyDet.confidence);
+        confidence = Number.isFinite(parsed) ? parsed : null;
+      }
+
+      return { id: index + 1, label, confidence };
+    })
+    .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))
+    .slice(0, 5);
 
   function resetForm() {
     setFile(null);
@@ -156,6 +182,25 @@ export default function DashboardPage() {
     if (input) {
       input.value = "";
     }
+  }
+
+  function predictionLabelClass(label: string): string {
+    const lower = label.toLowerCase();
+    if (lower.includes("healthy")) return "healthy";
+    if (lower.includes("irregular")) return "irregular";
+    if (
+      lower.includes("disease") ||
+      lower.includes("blight") ||
+      lower.includes("rust") ||
+      lower.includes("rot") ||
+      lower.includes("wilt") ||
+      lower.includes("mold") ||
+      lower.includes("pest") ||
+      lower.includes("infect")
+    ) {
+      return "disease";
+    }
+    return "disease";
   }
 
   async function onUpload(e: React.FormEvent) {
@@ -320,6 +365,18 @@ export default function DashboardPage() {
                 <div className="small" style={{ marginTop: 8 }}>
                   Field health: <strong>{latestFieldHealthPercent}%</strong>
                 </div>
+                <div className="health-bar">
+                  <div
+                    className={`health-bar-fill ${
+                      latestFieldHealthPercent >= 70
+                        ? "good"
+                        : latestFieldHealthPercent >= 40
+                        ? "medium"
+                        : "bad"
+                    }`}
+                    style={{ width: `${latestFieldHealthPercent}%` }}
+                  />
+                </div>
                 <div className="small" style={{ marginTop: 2 }}>
                   Diseases detected: {latestDiseaseCount ?? "0"}
                   {latestTotalDetections !== null ? ` / ${latestTotalDetections} detections` : ""}
@@ -346,45 +403,75 @@ export default function DashboardPage() {
         {!latestScan ? (
           <div className="small">No scans yet. Upload your first drone image.</div>
         ) : (
-          <div>
-            <div className="scan-title">Scan #{latestScan.id}</div>
-            <div className="small">{formatTime(latestScan.created_at)}</div>
-            <div className="small" style={{ marginTop: 6 }}>
-              Detections: {Array.isArray(latestResult?.detections) ? latestResult.detections.length : 0}
-            </div>
-            {latestDrone ? (
-              <>
-                <div className="small" style={{ marginTop: 4 }}>
-                  Drone: {latestDrone.name || "—"} • Altitude: {latestDrone.altitude || "—"} • Duration:
-                  {" "}
-                  {latestDrone.flight_duration || "—"}
-                </div>
-                <div className="small" style={{ marginTop: 2 }}>
-                  Location: {latestDrone.location || "—"}
-                </div>
-                {latestDrone.captured_at ? (
-                  <div className="small" style={{ marginTop: 2 }}>
-                    Captured at: {latestDrone.captured_at}
+          <div className="scan-results-layout">
+            <div>
+              <div className="scan-title">Scan #{latestScan.id}</div>
+              <div className="small">{formatTime(latestScan.created_at)}</div>
+              <div className="small" style={{ marginTop: 6 }}>
+                Detections: {Array.isArray(latestResult?.detections) ? latestResult.detections.length : 0}
+              </div>
+              {latestDrone ? (
+                <>
+                  <div className="small" style={{ marginTop: 4 }}>
+                    Drone: {latestDrone.name || "—"} • Altitude: {latestDrone.altitude || "—"} • Duration:{" "}
+                    {latestDrone.flight_duration || "—"}
                   </div>
-                ) : null}
-              </>
-            ) : null}
-            <div style={{ marginTop: 12 }}>
-              {latestScan && scanImages[latestScan.id] ? (
-                <img
-                  src={scanImages[latestScan.id] as string}
-                  alt={`Scan ${latestScan.id}`}
-                  className="scan-results-wide-image"
-                />
-              ) : (
-                <div className="small">Image preview not available.</div>
-              )}
+                  <div className="small" style={{ marginTop: 2 }}>
+                    Location: {latestDrone.location || "—"}
+                  </div>
+                  {latestDrone.captured_at ? (
+                    <div className="small" style={{ marginTop: 2 }}>
+                      Captured at: {latestDrone.captured_at}
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+              <div style={{ marginTop: 12 }}>
+                {latestScan && scanImages[latestScan.id] ? (
+                  <img
+                    src={scanImages[latestScan.id] as string}
+                    alt={`Scan ${latestScan.id}`}
+                    className="scan-results-wide-image"
+                  />
+                ) : (
+                  <div className="small">Image preview not available.</div>
+                )}
+              </div>
+              <div className="scan-actions" style={{ marginTop: 12 }}>
+                <details>
+                  <summary className="link">Result JSON</summary>
+                  <pre className="code">{JSON.stringify(latestResult, null, 2)}</pre>
+                </details>
+              </div>
             </div>
-            <div className="scan-actions" style={{ marginTop: 12 }}>
-              <details>
-                <summary className="link">Result JSON</summary>
-                <pre className="code">{JSON.stringify(latestResult, null, 2)}</pre>
-              </details>
+
+            <div>
+              <div className="small" style={{ fontWeight: 700 }}>
+                Predictions
+              </div>
+              {latestPredictions.length === 0 ? (
+                <div className="small" style={{ marginTop: 6 }}>
+                  No prediction details available for this scan.
+                </div>
+              ) : (
+                <div className="prediction-list">
+                  {latestPredictions.map((p) => (
+                    <div className="prediction-item" key={p.id}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span className="small" style={{ opacity: 0.7 }}>
+                          #{p.id}
+                        </span>
+                        <span className={`prediction-label ${predictionLabelClass(p.label)}`}>
+                          {p.label}
+                        </span>
+                      </div>
+                      <div className="prediction-score">
+                        {p.confidence != null ? `${(p.confidence * 100).toFixed(1)}%` : "—"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

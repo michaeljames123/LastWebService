@@ -526,6 +526,65 @@ textarea {
   gap: 10px;
 }
 
+.scan-results-layout {
+  display: grid;
+  gap: 18px;
+}
+
+@media (min-width: 900px) {
+  .scan-results-layout {
+    grid-template-columns: minmax(0, 2.1fr) minmax(0, 1.1fr);
+    align-items: flex-start;
+  }
+}
+
+.prediction-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.prediction-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.26);
+}
+
+.prediction-label {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.prediction-label.healthy {
+  background: rgba(72, 199, 116, 0.2);
+  color: #e7ffee;
+}
+
+.prediction-label.irregular {
+  background: rgba(132, 94, 247, 0.28);
+  color: #f1e9ff;
+}
+
+.prediction-label.disease {
+  background: rgba(255, 90, 95, 0.25);
+  color: #ffe5e7;
+}
+
+.prediction-score {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--muted);
+}
+
 .scan-results-wide {
   margin-top: 24px;
 }
@@ -537,6 +596,69 @@ textarea {
   max-height: 720px;
   object-fit: contain;
   border-radius: 16px;
+}
+
+.health-bar {
+  margin-top: 6px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.health-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 180ms ease-in-out;
+}
+
+.health-bar-fill.good {
+  background: linear-gradient(90deg, var(--primary), var(--primary-2));
+}
+
+.health-bar-fill.medium {
+  background: linear-gradient(90deg, #f4d35e, #f4a261);
+}
+
+.health-bar-fill.bad {
+  background: linear-gradient(90deg, #ff5a5f, #ff3b3b);
+}
+
+.estimate-layout {
+  display: grid;
+  gap: 18px;
+}
+
+@media (min-width: 900px) {
+  .estimate-layout {
+    grid-template-columns: minmax(0, 2.2fr) minmax(230px, 0.9fr);
+    align-items: flex-start;
+  }
+}
+
+.estimate-main-image {
+  width: 100%;
+  border-radius: 14px;
+  display: block;
+}
+
+.estimate-sidebar {
+  display: grid;
+  gap: 12px;
+}
+
+.estimate-sidebar-card {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.sidebar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .code {

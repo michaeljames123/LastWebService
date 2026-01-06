@@ -13,17 +13,25 @@ export default function EstimateFieldPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
-  const [imageBlobUrl, setImageBlobUrl] = useState<string | null>(null);
+  const [annotatedBlobUrl, setAnnotatedBlobUrl] = useState<string | null>(null);
+  const [originalBlobUrl, setOriginalBlobUrl] = useState<string | null>(null);
+  const [showBoxes, setShowBoxes] = useState(true);
 
   useEffect(() => {
     return () => {
-      if (imageBlobUrl) {
-        window.URL.revokeObjectURL(imageBlobUrl);
+      if (annotatedBlobUrl) {
+        window.URL.revokeObjectURL(annotatedBlobUrl);
+      }
+      if (originalBlobUrl) {
+        window.URL.revokeObjectURL(originalBlobUrl);
       }
     };
-  }, [imageBlobUrl]);
+  }, [annotatedBlobUrl, originalBlobUrl]);
 
-  async function loadAnnotatedImage(imageUrl: string) {
+  async function loadImage(
+    imageUrl: string,
+    setter: (updater: (prev: string | null) => string | null) => void
+  ) {
     if (!token) return;
 
     const res = await fetch(`${API_BASE_URL}${imageUrl}`, {
@@ -49,7 +57,7 @@ export default function EstimateFieldPage() {
     const blob = await res.blob();
     const blobUrl = window.URL.createObjectURL(blob);
 
-    setImageBlobUrl((prev) => {
+    setter((prev: string | null) => {
       if (prev) {
         window.URL.revokeObjectURL(prev);
       }
@@ -73,20 +81,31 @@ export default function EstimateFieldPage() {
 
     setBusy(true);
     setResult(null);
-    setImageBlobUrl((prev) => {
+    setAnnotatedBlobUrl((prev) => {
       if (prev) {
         window.URL.revokeObjectURL(prev);
       }
       return null;
     });
+    setOriginalBlobUrl((prev) => {
+      if (prev) {
+        window.URL.revokeObjectURL(prev);
+      }
+      return null;
+    });
+    setShowBoxes(true);
 
     try {
       const res = await estimateField(token, file);
       setResult(res);
 
-      const imageUrl = res?.annotated_image_url;
-      if (typeof imageUrl === "string" && imageUrl) {
-        await loadAnnotatedImage(imageUrl);
+      const annotatedUrl = res?.annotated_image_url;
+      const originalUrl = res?.original_image_url;
+      if (typeof annotatedUrl === "string" && annotatedUrl) {
+        await loadImage(annotatedUrl, setAnnotatedBlobUrl);
+      }
+      if (typeof originalUrl === "string" && originalUrl) {
+        await loadImage(originalUrl, setOriginalBlobUrl);
       }
 
       setFile(null);
@@ -113,6 +132,8 @@ export default function EstimateFieldPage() {
       cornCount += 1;
     }
   }
+
+  const displayImageUrl = showBoxes ? annotatedBlobUrl : originalBlobUrl;
 
   return (
     <div className="container" style={{ padding: "34px 0 54px" }}>
@@ -160,24 +181,64 @@ export default function EstimateFieldPage() {
 
             <div className="hr" />
 
-            {imageBlobUrl ? (
-              <img
-                src={imageBlobUrl}
-                alt="Annotated result"
-                style={{ width: "100%", borderRadius: 14, display: "block" }}
-              />
-            ) : (
-              <div className="small">Annotated image will appear here.</div>
-            )}
+            <div className="estimate-layout">
+              <div>
+                <div className="small" style={{ marginBottom: 8 }}>
+                  <label className="sidebar-toggle">
+                    <span>Show boxes on image</span>
+                    <input
+                      type="checkbox"
+                      checked={showBoxes}
+                      onChange={(e) => setShowBoxes(e.target.checked)}
+                    />
+                  </label>
+                </div>
 
-            {result ? (
-              <div style={{ marginTop: 14 }}>
-                <details>
-                  <summary className="link">Predictions JSON</summary>
-                  <pre className="code">{JSON.stringify(result, null, 2)}</pre>
-                </details>
+                {displayImageUrl ? (
+                  <img
+                    src={displayImageUrl}
+                    alt={showBoxes ? "Annotated result" : "Original image"}
+                    className="estimate-main-image"
+                  />
+                ) : (
+                  <div className="small">Annotated image will appear here.</div>
+                )}
+
+                {result ? (
+                  <div style={{ marginTop: 14 }}>
+                    <details>
+                      <summary className="link">Predictions JSON</summary>
+                      <pre className="code">{JSON.stringify(result, null, 2)}</pre>
+                    </details>
+                  </div>
+                ) : null}
               </div>
-            ) : null}
+
+              <aside className="estimate-sidebar">
+                <div className="estimate-sidebar-card">
+                  <div className="stack-title">Summary</div>
+                  <div className="small" style={{ marginTop: 6 }}>
+                    Predictions: {predCount}
+                    <br />
+                    Corn plants detected: {cornCount}
+                  </div>
+                </div>
+                <div className="estimate-sidebar-card">
+                  <div className="stack-title">Display options</div>
+                  <div className="small" style={{ marginTop: 6 }}>
+                    Use the Show boxes switch to focus either on the raw image or the AI overlay
+                    during demonstrations.
+                  </div>
+                </div>
+                <div className="estimate-sidebar-card">
+                  <div className="stack-title">Tips</div>
+                  <div className="small" style={{ marginTop: 6 }}>
+                    Fly at a consistent altitude with good lighting. Save important scans and field
+                    notes so you can compare plant health over time.
+                  </div>
+                </div>
+              </aside>
+            </div>
           </Card>
         </div>
       </div>
