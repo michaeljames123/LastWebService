@@ -6,4 +6,8 @@ export default defineConfig({
   server: {
     port: 5174,
   },
+  preview: {
+    // Allow external hosts (like Koyeb) to access the Vite preview server
+    allowedHosts: true,
+  },
 });
