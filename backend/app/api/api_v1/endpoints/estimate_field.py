@@ -227,6 +227,8 @@ async def estimate_field(
         "raw": raw,
         "annotated_image_filename": annotated_filename,
         "annotated_image_url": f"{settings.API_V1_STR}/estimate-field/image/{annotated_filename}",
+        "original_image_filename": original_filename,
+        "original_image_url": f"{settings.API_V1_STR}/estimate-field/image/{original_filename}",
     }
 
 
