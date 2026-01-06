@@ -159,11 +159,11 @@ def render_polygons_only(
             continue
 
         color = _class_color(det.get("class_id"))
-        fill = (color[0], color[1], color[2], 90)
         outline = (color[0], color[1], color[2], 255)
 
+        # Draw only crisp polygon outlines (no semi-transparent fill) so the
+        # underlying field image stays clean and clear, similar to the web UI.
         try:
-            draw.polygon(pts, fill=fill)
             if len(pts) >= 2:
                 draw.line(pts + [pts[0]], fill=outline, width=3)
         except Exception:
