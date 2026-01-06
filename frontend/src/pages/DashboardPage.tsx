@@ -246,7 +246,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="container" style={{ padding: "34px 0 54px" }}>
+    <div className="container" style={{ padding: "24px 0 38px" }}>
       <div className="grid grid-2">
         <div>
           <div className="badge">

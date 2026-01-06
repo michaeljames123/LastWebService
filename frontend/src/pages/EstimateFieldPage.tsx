@@ -133,7 +133,12 @@ export default function EstimateFieldPage() {
     }
   }
 
-  const displayImageUrl = showBoxes ? annotatedBlobUrl : originalBlobUrl;
+  let displayImageUrl: string | null = null;
+  if (showBoxes) {
+    displayImageUrl = annotatedBlobUrl || originalBlobUrl;
+  } else {
+    displayImageUrl = originalBlobUrl || annotatedBlobUrl;
+  }
 
   return (
     <div className="container" style={{ padding: "34px 0 54px" }}>
@@ -197,11 +202,11 @@ export default function EstimateFieldPage() {
                 {displayImageUrl ? (
                   <img
                     src={displayImageUrl}
-                    alt={showBoxes ? "Annotated result" : "Original image"}
+                    alt={showBoxes && annotatedBlobUrl ? "Annotated result" : "Original image"}
                     className="estimate-main-image"
                   />
                 ) : (
-                  <div className="small">Annotated image will appear here.</div>
+                  <div className="small">Result image will appear here after analysis.</div>
                 )}
 
                 {result ? (

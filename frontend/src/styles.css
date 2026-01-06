@@ -586,14 +586,14 @@ textarea {
 }
 
 .scan-results-wide {
-  margin-top: 24px;
+  margin-top: 16px;
 }
 
 .scan-results-wide-image {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 720px;
+  max-height: 520px;
   object-fit: contain;
   border-radius: 16px;
 }
@@ -677,4 +677,92 @@ textarea {
 
 details > summary {
   cursor: pointer;
+}
+
+.quick-sidebar-fab {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.78);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  z-index: 90;
+}
+
+.quick-sidebar-fab:hover {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.quick-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  pointer-events: none;
+  z-index: 70;
+}
+
+.quick-sidebar-backdrop.open {
+  background: rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+}
+
+.quick-sidebar-drawer {
+  position: fixed;
+  top: 64px;
+  right: 0;
+  bottom: 0;
+  width: 260px;
+  transform: translateX(100%);
+  transition: transform 160ms ease-out;
+  z-index: 80;
+  pointer-events: none;
+}
+
+.quick-sidebar-drawer.open {
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.quick-sidebar-inner {
+  height: 100%;
+  padding: 16px;
+  border-radius: 16px 0 0 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  background: radial-gradient(650px 400px at 10% 0%, rgba(72, 199, 116, 0.16), transparent 55%),
+    rgba(5, 11, 7, 0.96);
+  box-shadow: -18px 0 45px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.quick-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.quick-sidebar-close {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.quick-sidebar-body {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
 }
