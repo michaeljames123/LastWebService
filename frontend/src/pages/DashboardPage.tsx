@@ -121,6 +121,29 @@ export default function DashboardPage() {
     return { dot: "bad", text: "AI brain not ready" } as const;
   }, [status]);
 
+  const latestScan = scans.length > 0 ? scans[0] : null;
+  const latestResult: any = latestScan ? (latestScan as any).result ?? null : null;
+  const latestFieldHealth = latestResult?.field_health;
+  const latestFieldHealthPercent =
+    latestFieldHealth && typeof latestFieldHealth.field_health_percent === "number"
+      ? latestFieldHealth.field_health_percent
+      : null;
+  const latestDiseaseCount =
+    latestFieldHealth && typeof latestFieldHealth.disease_count === "number"
+      ? latestFieldHealth.disease_count
+      : null;
+  const latestTotalDetections =
+    latestFieldHealth && typeof latestFieldHealth.total_detections === "number"
+      ? latestFieldHealth.total_detections
+      : Array.isArray(latestResult?.detections)
+      ? latestResult.detections.length
+      : null;
+  const latestRecommendation =
+    latestFieldHealth && typeof latestFieldHealth.recommendation === "string"
+      ? latestFieldHealth.recommendation
+      : null;
+  const latestDrone = latestResult?.drone;
+
   async function onUpload(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -265,7 +288,7 @@ export default function DashboardPage() {
           <Card className="panel">
             <div className="h2">Recent scans</div>
             <div className="small" style={{ marginTop: 8 }}>
-              Stored per user. Latest scans include image previews and health insights.
+              Stored per user. Each scan includes the captured image and drone metadata.
             </div>
 
             <div className="hr" />
@@ -280,24 +303,6 @@ export default function DashboardPage() {
                     : 0;
 
                   const drone = (s as any).result?.drone;
-                  const fieldHealth = (s as any).result?.field_health;
-                  const fieldHealthPercent =
-                    fieldHealth && typeof fieldHealth.field_health_percent === "number"
-                      ? fieldHealth.field_health_percent
-                      : null;
-                  const diseaseCount =
-                    fieldHealth && typeof fieldHealth.disease_count === "number"
-                      ? fieldHealth.disease_count
-                      : null;
-                  const totalDetections =
-                    fieldHealth && typeof fieldHealth.total_detections === "number"
-                      ? fieldHealth.total_detections
-                      : detections;
-                  const recommendation =
-                    fieldHealth && typeof fieldHealth.recommendation === "string"
-                      ? fieldHealth.recommendation
-                      : null;
-
                   const imgUrl = scanImages[s.id] ?? null;
 
                   return (
@@ -323,18 +328,6 @@ export default function DashboardPage() {
                               </div>
                             ) : null}
                           </>
-                        ) : null}
-                        {fieldHealthPercent !== null ? (
-                          <div className="small" style={{ marginTop: 4 }}>
-                            Field health: {fieldHealthPercent}% (diseases: {diseaseCount ?? "0"} /
-                            {" "}
-                            {totalDetections})
-                          </div>
-                        ) : null}
-                        {recommendation ? (
-                          <div className="small" style={{ marginTop: 2 }}>
-                            Recommendation: {recommendation}
-                          </div>
                         ) : null}
                         <div style={{ marginTop: 10 }}>
                           {imgUrl ? (
@@ -364,6 +357,43 @@ export default function DashboardPage() {
                   );
                 })}
               </div>
+            )}
+          </Card>
+
+          <Card className="panel" style={{ marginTop: 16 }}>
+            <div className="h2">Field health summary</div>
+            <div className="small" style={{ marginTop: 8 }}>
+              Overview from your most recent scan.
+            </div>
+
+            <div className="hr" />
+
+            {!latestScan || latestFieldHealthPercent === null ? (
+              <div className="small">Run a scan to see field health insights here.</div>
+            ) : (
+              <>
+                <div className="small">
+                  Latest scan: #{latestScan.id} ({formatTime(latestScan.created_at)})
+                </div>
+                {latestDrone ? (
+                  <div className="small" style={{ marginTop: 6 }}>
+                    Drone: {latestDrone.name || "—"} • Altitude: {latestDrone.altitude || "—"} •
+                    Duration: {latestDrone.flight_duration || "—"}
+                  </div>
+                ) : null}
+                <div className="small" style={{ marginTop: 8 }}>
+                  Field health: <strong>{latestFieldHealthPercent}%</strong>
+                </div>
+                <div className="small" style={{ marginTop: 2 }}>
+                  Diseases detected: {latestDiseaseCount ?? "0"}
+                  {latestTotalDetections !== null ? ` / ${latestTotalDetections} detections` : ""}
+                </div>
+                {latestRecommendation ? (
+                  <div className="small" style={{ marginTop: 8 }}>
+                    Treatment plan: {latestRecommendation}
+                  </div>
+                ) : null}
+              </>
             )}
           </Card>
         </div>
