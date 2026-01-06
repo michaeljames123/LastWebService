@@ -23,6 +23,11 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [file, setFile] = useState<File | null>(null);
+  const [droneName, setDroneName] = useState("");
+  const [flightDuration, setFlightDuration] = useState("");
+  const [droneAltitude, setDroneAltitude] = useState("");
+  const [location, setLocation] = useState("");
+  const [capturedAt, setCapturedAt] = useState("");
 
   const token = auth.token;
 
@@ -102,11 +107,28 @@ export default function DashboardPage() {
       return;
     }
 
+    if (!droneName || !flightDuration || !droneAltitude || !location || !capturedAt) {
+      setError("Please fill in all drone details");
+      return;
+    }
+
     setBusy(true);
     try {
-      const created = await createScan(token, file);
+      const created = await createScan(token, {
+        file,
+        drone_name: droneName,
+        flight_duration: flightDuration,
+        drone_altitude: droneAltitude,
+        location,
+        captured_at: capturedAt,
+      });
       setScans((prev) => [created, ...prev]);
       setFile(null);
+      setDroneName("");
+      setFlightDuration("");
+      setDroneAltitude("");
+      setLocation("");
+      setCapturedAt("");
       (document.getElementById("scan-file") as HTMLInputElement | null)?.value &&
         (((document.getElementById("scan-file") as HTMLInputElement | null)!).value = "");
     } catch (err: any) {
@@ -154,6 +176,43 @@ export default function DashboardPage() {
             <div className="h2">Upload a new scan</div>
             <form onSubmit={onUpload} className="form" style={{ marginTop: 10 }}>
               <input
+                className="input"
+                type="text"
+                placeholder="Drone name"
+                value={droneName}
+                onChange={(e) => setDroneName(e.target.value)}
+              />
+              <input
+                className="input"
+                type="text"
+                placeholder="Flight duration (e.g. 15 min)"
+                value={flightDuration}
+                onChange={(e) => setFlightDuration(e.target.value)}
+              />
+              <input
+                className="input"
+                type="text"
+                placeholder="Drone altitude (e.g. 120 m)"
+                value={droneAltitude}
+                onChange={(e) => setDroneAltitude(e.target.value)}
+              />
+              <input
+                className="input"
+                type="text"
+                placeholder="Location"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+              />
+              <label className="small" style={{ marginTop: 4 }}>
+                Capture date &amp; time
+              </label>
+              <input
+                className="input"
+                type="datetime-local"
+                value={capturedAt}
+                onChange={(e) => setCapturedAt(e.target.value)}
+              />
+              <input
                 id="scan-file"
                 className="input"
                 type="file"
@@ -192,6 +251,25 @@ export default function DashboardPage() {
                     ? (s as any).result.detections.length
                     : 0;
 
+                  const drone = (s as any).result?.drone;
+                  const fieldHealth = (s as any).result?.field_health;
+                  const fieldHealthPercent =
+                    fieldHealth && typeof fieldHealth.field_health_percent === "number"
+                      ? fieldHealth.field_health_percent
+                      : null;
+                  const diseaseCount =
+                    fieldHealth && typeof fieldHealth.disease_count === "number"
+                      ? fieldHealth.disease_count
+                      : null;
+                  const totalDetections =
+                    fieldHealth && typeof fieldHealth.total_detections === "number"
+                      ? fieldHealth.total_detections
+                      : detections;
+                  const recommendation =
+                    fieldHealth && typeof fieldHealth.recommendation === "string"
+                      ? fieldHealth.recommendation
+                      : null;
+
                   return (
                     <div className="scan-item" key={s.id}>
                       <div>
@@ -200,6 +278,34 @@ export default function DashboardPage() {
                         <div className="small" style={{ marginTop: 6 }}>
                           Detections: {detections}
                         </div>
+                        {drone ? (
+                          <>
+                            <div className="small" style={{ marginTop: 4 }}>
+                              Drone: {drone.name || "—"} • Altitude: {drone.altitude || "—"} •
+                              Duration: {drone.flight_duration || "—"}
+                            </div>
+                            <div className="small" style={{ marginTop: 2 }}>
+                              Location: {drone.location || "—"}
+                            </div>
+                            {drone.captured_at ? (
+                              <div className="small" style={{ marginTop: 2 }}>
+                                Captured at: {drone.captured_at}
+                              </div>
+                            ) : null}
+                          </>
+                        ) : null}
+                        {fieldHealthPercent !== null ? (
+                          <div className="small" style={{ marginTop: 4 }}>
+                            Field health: {fieldHealthPercent}% (diseases: {diseaseCount ?? "0"} /
+                            {" "}
+                            {totalDetections})
+                          </div>
+                        ) : null}
+                        {recommendation ? (
+                          <div className="small" style={{ marginTop: 2 }}>
+                            Recommendation: {recommendation}
+                          </div>
+                        ) : null}
                       </div>
                       <div className="scan-actions">
                         <button

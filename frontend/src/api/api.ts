@@ -100,13 +100,27 @@ export function getAiStatus(): Promise<AiStatus> {
   return request<AiStatus>("/api/ai/status");
 }
 
+export type CreateScanInput = {
+  file: File;
+  drone_name: string;
+  flight_duration: string;
+  drone_altitude: string;
+  location: string;
+  captured_at: string;
+};
+
 export function listScans(token: string): Promise<Scan[]> {
   return request<Scan[]>("/api/scans/", { token });
 }
 
-export function createScan(token: string, file: File): Promise<Scan> {
+export function createScan(token: string, input: CreateScanInput): Promise<Scan> {
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", input.file);
+  form.append("drone_name", input.drone_name);
+  form.append("flight_duration", input.flight_duration);
+  form.append("drone_altitude", input.drone_altitude);
+  form.append("location", input.location);
+  form.append("captured_at", input.captured_at);
 
   return request<Scan>("/api/scans/", {
     method: "POST",

@@ -99,7 +99,20 @@ export default function EstimateFieldPage() {
     }
   }
 
-  const predCount = Array.isArray(result?.predictions) ? result.predictions.length : 0;
+  const predictions = Array.isArray(result?.predictions) ? result.predictions : [];
+  const predCount = predictions.length;
+
+  let cornCount = 0;
+  for (const p of predictions) {
+    if (!p || typeof p !== "object") continue;
+    const anyPred = p as any;
+    const label = String(
+      anyPred.class ?? anyPred.class_name ?? anyPred.label ?? ""
+    ).toLowerCase();
+    if (label.includes("corn")) {
+      cornCount += 1;
+    }
+  }
 
   return (
     <div className="container" style={{ padding: "34px 0 54px" }}>
@@ -140,7 +153,9 @@ export default function EstimateFieldPage() {
           <Card className="panel">
             <div className="h2">Result</div>
             <div className="small" style={{ marginTop: 8 }}>
-              {result ? `Predictions: ${predCount}` : "No result yet. Upload an image to start."}
+              {result
+                ? `Predictions: ${predCount} • Corn plants detected: ${cornCount}`
+                : "No result yet. Upload an image to start."}
             </div>
 
             <div className="hr" />

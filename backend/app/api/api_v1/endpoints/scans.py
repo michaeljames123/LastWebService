@@ -5,7 +5,7 @@ import os
 import shutil
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -30,6 +30,50 @@ def _scan_to_out(scan, *, result: dict) -> ScanOut:
     )
 
 
+def _compute_field_health(result: dict) -> dict:
+    detections_raw = result.get("detections")
+    detections = [d for d in detections_raw if isinstance(d, dict)] if isinstance(detections_raw, list) else []
+
+    total = len(detections)
+    disease_keywords = (
+        "disease",
+        "blight",
+        "rust",
+        "mold",
+        "rot",
+        "wilt",
+        "pest",
+        "infect",
+    )
+
+    disease_count = 0
+    for d in detections:
+        label = str(d.get("class_name") or d.get("class_id") or "").lower()
+        if any(k in label for k in disease_keywords):
+            disease_count += 1
+
+    if total <= 0:
+        health_percent = 100
+    else:
+        health_percent = max(0, min(100, round(100 * (1 - disease_count / total))))
+
+    if disease_count == 0:
+        recommendation = "No disease detected. Field health looks good."
+    elif health_percent >= 70:
+        recommendation = "Mild disease presence detected. Monitor affected areas and consider targeted treatment."
+    elif health_percent >= 40:
+        recommendation = "Moderate disease presence detected. Plan treatment for affected zones soon."
+    else:
+        recommendation = "Severe disease presence detected. Prioritize immediate treatment and consider expert advice."
+
+    return {
+        "field_health_percent": health_percent,
+        "disease_count": disease_count,
+        "total_detections": total,
+        "recommendation": recommendation,
+    }
+
+
 @router.get("/", response_model=list[ScanOut])
 def list_my_scans(
     db: Session = Depends(get_db),
@@ -51,6 +95,11 @@ async def create_my_scan(
     db: Session = Depends(get_db),
     current_user: User = Depends(deps.get_current_active_user),
     file: UploadFile = File(...),
+    drone_name: str = Form(...),
+    flight_duration: str = Form(...),
+    drone_altitude: str = Form(...),
+    location: str = Form(...),
+    captured_at: str = Form(...),
 ) -> ScanOut:
     ext = os.path.splitext(file.filename or "")[1] or ".jpg"
     filename = f"{uuid.uuid4().hex}{ext}"
@@ -65,6 +114,21 @@ async def create_my_scan(
         result = {"status": "model_not_available", "reason": str(e)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI inference failed: {e}")
+
+    drone_info = {
+        "name": drone_name,
+        "flight_duration": flight_duration,
+        "altitude": drone_altitude,
+        "location": location,
+        "captured_at": captured_at,
+    }
+
+    field_health = _compute_field_health(result) if isinstance(result, dict) else None
+
+    if isinstance(result, dict):
+        result["drone"] = drone_info
+        if field_health is not None:
+            result["field_health"] = field_health
 
     scan = create_scan(
         db,
