@@ -5,6 +5,7 @@ import shutil
 import uuid
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 
@@ -13,17 +14,6 @@ from app.core.config import settings
 from app.models.user import User
 
 router = APIRouter(prefix="/estimate-field", tags=["estimate-field"])
-
-
-def _require_inference_sdk():
-    try:
-        from inference_sdk import InferenceHTTPClient  # type: ignore
-    except Exception as e:  # pragma: no cover
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="inference-sdk is not installed. Install backend/requirements.txt to enable Roboflow inference.",
-        ) from e
-    return InferenceHTTPClient
 
 
 def _require_pillow():
@@ -190,9 +180,23 @@ async def estimate_field(
         shutil.copyfileobj(file.file, buffer)
 
     try:
-        InferenceHTTPClient = _require_inference_sdk()
-        client = InferenceHTTPClient(api_url=settings.ROBOFLOW_API_URL, api_key=settings.ROBOFLOW_API_KEY)
-        raw = client.infer(original_path, model_id=settings.ROBOFLOW_MODEL_ID)
+        # Call Roboflow directly over HTTP instead of relying on the inference-sdk client.
+        url = f"{settings.ROBOFLOW_API_URL.rstrip('/')}/{settings.ROBOFLOW_MODEL_ID}"
+        params = {"api_key": settings.ROBOFLOW_API_KEY}
+
+        with open(original_path, "rb") as f:
+            files = {"file": (original_filename, f, "application/octet-stream")}
+            resp = httpx.post(url, params=params, files=files, timeout=60.0)
+
+        try:
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(
+                status_code=e.response.status_code,
+                detail=f"Roboflow HTTP error: {e.response.text}",
+            ) from e
+
+        raw = resp.json()
     except HTTPException:
         raise
     except Exception as e:
