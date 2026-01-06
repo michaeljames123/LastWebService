@@ -41,15 +41,27 @@ export default function Navbar() {
 
         <div className="nav-actions">
           {auth.token ? (
-            <Button
-              variant="ghost"
-              onClick={() => {
-                auth.logout();
-                navigate("/");
-              }}
-            >
-              Logout
-            </Button>
+            <>
+              {auth.user ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    navigate("/profile");
+                  }}
+                >
+                  {auth.user.full_name || auth.user.username}
+                </Button>
+              ) : null}
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  auth.logout();
+                  navigate("/");
+                }}
+              >
+                Logout
+              </Button>
+            </>
           ) : (
             <>
               <Button variant="ghost" onClick={() => navigate("/login")}> 

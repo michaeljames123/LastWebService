@@ -286,76 +286,61 @@ export default function DashboardPage() {
 
         <div>
           <Card className="panel">
-            <div className="h2">Recent scans</div>
+            <div className="h2">Scan results</div>
             <div className="small" style={{ marginTop: 8 }}>
-              Stored per user. Each scan includes the captured image and drone metadata.
+              Latest analysis from your most recent drone upload.
             </div>
 
             <div className="hr" />
 
-            {scans.length === 0 ? (
+            {!latestScan ? (
               <div className="small">No scans yet. Upload your first drone image.</div>
             ) : (
-              <div className="scan-list">
-                {scans.map((s) => {
-                  const detections = Array.isArray((s as any).result?.detections)
-                    ? (s as any).result.detections.length
-                    : 0;
-
-                  const drone = (s as any).result?.drone;
-                  const imgUrl = scanImages[s.id] ?? null;
-
-                  return (
-                    <div className="scan-item" key={s.id}>
-                      <div className="scan-main">
-                        <div className="scan-title">Scan #{s.id}</div>
-                        <div className="small">{formatTime(s.created_at)}</div>
-                        <div className="small" style={{ marginTop: 6 }}>
-                          Detections: {detections}
-                        </div>
-                        {drone ? (
-                          <>
-                            <div className="small" style={{ marginTop: 4 }}>
-                              Drone: {drone.name || "—"} • Altitude: {drone.altitude || "—"} •
-                              Duration: {drone.flight_duration || "—"}
-                            </div>
-                            <div className="small" style={{ marginTop: 2 }}>
-                              Location: {drone.location || "—"}
-                            </div>
-                            {drone.captured_at ? (
-                              <div className="small" style={{ marginTop: 2 }}>
-                                Captured at: {drone.captured_at}
-                              </div>
-                            ) : null}
-                          </>
-                        ) : null}
-                        <div style={{ marginTop: 10 }}>
-                          {imgUrl ? (
-                            <img
-                              src={imgUrl}
-                              alt={`Scan ${s.id}`}
-                              style={{
-                                display: "block",
-                                width: "100%",
-                                maxHeight: 260,
-                                objectFit: "cover",
-                                borderRadius: 12,
-                              }}
-                            />
-                          ) : (
-                            <div className="small">Image preview not available.</div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="scan-actions">
-                        <details>
-                          <summary className="link">Result JSON</summary>
-                          <pre className="code">{JSON.stringify(s.result, null, 2)}</pre>
-                        </details>
-                      </div>
+              <div>
+                <div className="scan-title">Scan #{latestScan.id}</div>
+                <div className="small">{formatTime(latestScan.created_at)}</div>
+                <div className="small" style={{ marginTop: 6 }}>
+                  Detections: {Array.isArray(latestResult?.detections) ? latestResult.detections.length : 0}
+                </div>
+                {latestDrone ? (
+                  <>
+                    <div className="small" style={{ marginTop: 4 }}>
+                      Drone: {latestDrone.name || "—"} • Altitude: {latestDrone.altitude || "—"} •
+                      Duration: {latestDrone.flight_duration || "—"}
                     </div>
-                  );
-                })}
+                    <div className="small" style={{ marginTop: 2 }}>
+                      Location: {latestDrone.location || "—"}
+                    </div>
+                    {latestDrone.captured_at ? (
+                      <div className="small" style={{ marginTop: 2 }}>
+                        Captured at: {latestDrone.captured_at}
+                      </div>
+                    ) : null}
+                  </>
+                ) : null}
+                <div style={{ marginTop: 12 }}>
+                  {latestScan && scanImages[latestScan.id] ? (
+                    <img
+                      src={scanImages[latestScan.id] as string}
+                      alt={`Scan ${latestScan.id}`}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        height: 360,
+                        objectFit: "cover",
+                        borderRadius: 16,
+                      }}
+                    />
+                  ) : (
+                    <div className="small">Image preview not available.</div>
+                  )}
+                </div>
+                <div className="scan-actions" style={{ marginTop: 12 }}>
+                  <details>
+                    <summary className="link">Result JSON</summary>
+                    <pre className="code">{JSON.stringify(latestResult, null, 2)}</pre>
+                  </details>
+                </div>
               </div>
             )}
           </Card>

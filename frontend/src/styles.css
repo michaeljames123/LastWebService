@@ -491,6 +491,18 @@ textarea {
   }
 }
 
+.scan-main img {
+  width: 100%;
+  border-radius: 14px;
+}
+
+@media (min-width: 900px) {
+  .scan-main img {
+    max-height: 420px;
+    object-fit: cover;
+  }
+}
+
 .scan-title {
   font-weight: 700;
 }
