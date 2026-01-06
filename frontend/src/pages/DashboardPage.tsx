@@ -28,46 +28,9 @@ export default function DashboardPage() {
   const [droneAltitude, setDroneAltitude] = useState("");
   const [location, setLocation] = useState("");
   const [capturedAt, setCapturedAt] = useState("");
+  const [scanImages, setScanImages] = useState<Record<number, string | null>>({});
 
   const token = auth.token;
-
-  async function viewImage(imageUrl: string) {
-    setError(null);
-
-    if (!token) {
-      setError("You are not authenticated");
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_BASE_URL}${imageUrl}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        let msg = text || res.statusText;
-        try {
-          const parsed = JSON.parse(text);
-          if (parsed && typeof parsed === "object" && "detail" in parsed) {
-            msg = String((parsed as any).detail);
-          }
-        } catch {
-          // ignore
-        }
-        throw new Error(msg);
-      }
-
-      const blob = await res.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      window.open(blobUrl, "_blank", "noopener,noreferrer");
-      window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60_000);
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to load image");
-    }
-  }
 
   useEffect(() => {
     getAiStatus()
@@ -82,6 +45,71 @@ export default function DashboardPage() {
       .then(setScans)
       .catch((err: any) => setError(err?.message ?? "Failed to load scans"));
   }, [token]);
+
+  useEffect(() => {
+    if (!token || scans.length === 0) {
+      setScanImages((prev) => {
+        Object.values(prev).forEach((url) => {
+          if (url) {
+            window.URL.revokeObjectURL(url);
+          }
+        });
+        return {};
+      });
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadImages() {
+      const next: Record<number, string | null> = {};
+
+      for (const s of scans) {
+        try {
+          const res = await fetch(`${API_BASE_URL}${s.image_url}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (!res.ok) {
+            next[s.id] = null;
+            continue;
+          }
+
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          next[s.id] = url;
+        } catch {
+          next[s.id] = null;
+        }
+      }
+
+      if (cancelled) {
+        Object.values(next).forEach((url) => {
+          if (url) {
+            window.URL.revokeObjectURL(url);
+          }
+        });
+        return;
+      }
+
+      setScanImages((prev) => {
+        Object.values(prev).forEach((url) => {
+          if (url) {
+            window.URL.revokeObjectURL(url);
+          }
+        });
+        return next;
+      });
+    }
+
+    loadImages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [scans, token]);
 
   const modelBadge = useMemo(() => {
     if (!status) {
@@ -237,7 +265,7 @@ export default function DashboardPage() {
           <Card className="panel">
             <div className="h2">Recent scans</div>
             <div className="small" style={{ marginTop: 8 }}>
-              Stored per user. Click to view the image.
+              Stored per user. Latest scans include image previews and health insights.
             </div>
 
             <div className="hr" />
@@ -270,9 +298,11 @@ export default function DashboardPage() {
                       ? fieldHealth.recommendation
                       : null;
 
+                  const imgUrl = scanImages[s.id] ?? null;
+
                   return (
                     <div className="scan-item" key={s.id}>
-                      <div>
+                      <div className="scan-main">
                         <div className="scan-title">Scan #{s.id}</div>
                         <div className="small">{formatTime(s.created_at)}</div>
                         <div className="small" style={{ marginTop: 6 }}>
@@ -306,15 +336,25 @@ export default function DashboardPage() {
                             Recommendation: {recommendation}
                           </div>
                         ) : null}
+                        <div style={{ marginTop: 10 }}>
+                          {imgUrl ? (
+                            <img
+                              src={imgUrl}
+                              alt={`Scan ${s.id}`}
+                              style={{
+                                display: "block",
+                                width: "100%",
+                                maxHeight: 260,
+                                objectFit: "cover",
+                                borderRadius: 12,
+                              }}
+                            />
+                          ) : (
+                            <div className="small">Image preview not available.</div>
+                          )}
+                        </div>
                       </div>
                       <div className="scan-actions">
-                        <button
-                          className="link"
-                          type="button"
-                          onClick={() => viewImage(s.image_url)}
-                        >
-                          View image
-                        </button>
                         <details>
                           <summary className="link">Result JSON</summary>
                           <pre className="code">{JSON.stringify(s.result, null, 2)}</pre>
