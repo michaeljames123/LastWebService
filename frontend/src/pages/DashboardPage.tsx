@@ -144,6 +144,20 @@ export default function DashboardPage() {
       : null;
   const latestDrone = latestResult?.drone;
 
+  function resetForm() {
+    setFile(null);
+    setDroneName("");
+    setFlightDuration("");
+    setDroneAltitude("");
+    setLocation("");
+    setCapturedAt("");
+    setError(null);
+    const input = document.getElementById("scan-file") as HTMLInputElement | null;
+    if (input) {
+      input.value = "";
+    }
+  }
+
   async function onUpload(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -174,16 +188,13 @@ export default function DashboardPage() {
         captured_at: capturedAt,
       });
       setScans((prev) => [created, ...prev]);
-      setFile(null);
-      setDroneName("");
-      setFlightDuration("");
-      setDroneAltitude("");
-      setLocation("");
-      setCapturedAt("");
-      (document.getElementById("scan-file") as HTMLInputElement | null)?.value &&
-        (((document.getElementById("scan-file") as HTMLInputElement | null)!).value = "");
     } catch (err: any) {
-      setError(err?.message ?? "Failed to upload scan");
+      const msg = err?.message ?? "Failed to upload scan";
+      if (msg === "Could not validate credentials") {
+        auth.logout();
+        return;
+      }
+      setError(msg);
     } finally {
       setBusy(false);
     }
@@ -275,7 +286,7 @@ export default function DashboardPage() {
                 <Button type="submit" disabled={busy}>
                   {busy ? "Uploading…" : "Run scan"}
                 </Button>
-                <Button type="button" variant="ghost" onClick={() => setFile(null)}>
+                <Button type="button" variant="ghost" onClick={resetForm}>
                   Reset
                 </Button>
               </div>
