@@ -6,39 +6,49 @@ export default function AboutPage() {
       <div className="grid grid-2">
         <div>
           <div className="badge">
-            <span className="badge-dot ok" /> Mission
+            <span className="badge-dot ok" /> About AgridroneScan
           </div>
           <h1 className="h1" style={{ marginTop: 12 }}>
-            Agriculture decisions,
+            From drone flight
             <br />
-            powered by aerial vision.
+            to disease insight.
           </h1>
           <p className="p" style={{ marginTop: 14 }}>
-            AgridroneScan is a full-stack starter that combines authentication, data storage, and AI
-            endpoints so you can focus on building real farming features.
+            AgridroneScan is a field-ready web dashboard that turns drone images into crop health
+            decisions. It is designed around Philippine farms: corn fields with bacterial stalk rot,
+            rust, and leaf blight that need fast, visual answers after every flight.
           </p>
           <div style={{ marginTop: 14 }} className="small">
-            Backend: FastAPI + SQLite • Frontend: React + Vite
+            Backend: FastAPI + SQLite • Frontend: React + Vite • AI: your own YOLO / Roboflow model
           </div>
         </div>
 
         <Card className="stack">
-          <div className="h2">What you get</div>
+          <div className="h2">Philippine corn health, step by step</div>
           <div className="hr" />
           <div className="grid" style={{ gap: 12 }}>
             <div className="stack-item">
-              <div className="stack-title">Secure auth</div>
-              <div className="small">Register/login with JWT-protected dashboard routes.</div>
-            </div>
-            <div className="stack-item">
-              <div className="stack-title">SQLite database</div>
-              <div className="small">Users, contact messages, and scan history included.</div>
-            </div>
-            <div className="stack-item">
-              <div className="stack-title">AI-ready API</div>
+              <div className="stack-title">Common field problems</div>
               <div className="small">
-                Plug in best.pt (Ultralytics YOLO). If the model isn’t available yet, the API returns
-                a clear status message.
+                Focused on diseases seen in local corn fields such as bacterial stalk rot, leaf
+                blight, rust, and irregular growth areas that reduce yield.
+              </div>
+            </div>
+            <div className="stack-item">
+              <div className="stack-title">Drone → system workflow</div>
+              <div className="small">
+                1) Fly the drone over your field.
+                2) Capture top-down images.
+                3) Upload a photo in the dashboard.
+                4) The AI model detects diseases and healthy areas.
+                5) AgridroneScan stores the scan and shows field health %.
+              </div>
+            </div>
+            <div className="stack-item">
+              <div className="stack-title">For agronomists and students</div>
+              <div className="small">
+                Use the dashboard to demonstrate how drones, AI, and farm records work together—from
+                capturing images to making recommendations for treatment and monitoring.
               </div>
             </div>
           </div>

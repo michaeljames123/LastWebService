@@ -296,66 +296,6 @@ export default function DashboardPage() {
         </div>
 
         <div>
-          <Card className="panel">
-            <div className="h2">Scan results</div>
-            <div className="small" style={{ marginTop: 8 }}>
-              Latest analysis from your most recent drone upload.
-            </div>
-
-            <div className="hr" />
-
-            {!latestScan ? (
-              <div className="small">No scans yet. Upload your first drone image.</div>
-            ) : (
-              <div>
-                <div className="scan-title">Scan #{latestScan.id}</div>
-                <div className="small">{formatTime(latestScan.created_at)}</div>
-                <div className="small" style={{ marginTop: 6 }}>
-                  Detections: {Array.isArray(latestResult?.detections) ? latestResult.detections.length : 0}
-                </div>
-                {latestDrone ? (
-                  <>
-                    <div className="small" style={{ marginTop: 4 }}>
-                      Drone: {latestDrone.name || "—"} • Altitude: {latestDrone.altitude || "—"} •
-                      Duration: {latestDrone.flight_duration || "—"}
-                    </div>
-                    <div className="small" style={{ marginTop: 2 }}>
-                      Location: {latestDrone.location || "—"}
-                    </div>
-                    {latestDrone.captured_at ? (
-                      <div className="small" style={{ marginTop: 2 }}>
-                        Captured at: {latestDrone.captured_at}
-                      </div>
-                    ) : null}
-                  </>
-                ) : null}
-                <div style={{ marginTop: 12 }}>
-                  {latestScan && scanImages[latestScan.id] ? (
-                    <img
-                      src={scanImages[latestScan.id] as string}
-                      alt={`Scan ${latestScan.id}`}
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        height: 360,
-                        objectFit: "cover",
-                        borderRadius: 16,
-                      }}
-                    />
-                  ) : (
-                    <div className="small">Image preview not available.</div>
-                  )}
-                </div>
-                <div className="scan-actions" style={{ marginTop: 12 }}>
-                  <details>
-                    <summary className="link">Result JSON</summary>
-                    <pre className="code">{JSON.stringify(latestResult, null, 2)}</pre>
-                  </details>
-                </div>
-              </div>
-            )}
-          </Card>
-
           <Card className="panel" style={{ marginTop: 16 }}>
             <div className="h2">Field health summary</div>
             <div className="small" style={{ marginTop: 8 }}>
@@ -394,6 +334,61 @@ export default function DashboardPage() {
           </Card>
         </div>
       </div>
+
+      <Card className="panel scan-results-wide" style={{ marginTop: 20 }}>
+        <div className="h2">Scan results</div>
+        <div className="small" style={{ marginTop: 8 }}>
+          Latest analysis from your most recent drone upload.
+        </div>
+
+        <div className="hr" />
+
+        {!latestScan ? (
+          <div className="small">No scans yet. Upload your first drone image.</div>
+        ) : (
+          <div>
+            <div className="scan-title">Scan #{latestScan.id}</div>
+            <div className="small">{formatTime(latestScan.created_at)}</div>
+            <div className="small" style={{ marginTop: 6 }}>
+              Detections: {Array.isArray(latestResult?.detections) ? latestResult.detections.length : 0}
+            </div>
+            {latestDrone ? (
+              <>
+                <div className="small" style={{ marginTop: 4 }}>
+                  Drone: {latestDrone.name || "—"} • Altitude: {latestDrone.altitude || "—"} • Duration:
+                  {" "}
+                  {latestDrone.flight_duration || "—"}
+                </div>
+                <div className="small" style={{ marginTop: 2 }}>
+                  Location: {latestDrone.location || "—"}
+                </div>
+                {latestDrone.captured_at ? (
+                  <div className="small" style={{ marginTop: 2 }}>
+                    Captured at: {latestDrone.captured_at}
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+            <div style={{ marginTop: 12 }}>
+              {latestScan && scanImages[latestScan.id] ? (
+                <img
+                  src={scanImages[latestScan.id] as string}
+                  alt={`Scan ${latestScan.id}`}
+                  className="scan-results-wide-image"
+                />
+              ) : (
+                <div className="small">Image preview not available.</div>
+              )}
+            </div>
+            <div className="scan-actions" style={{ marginTop: 12 }}>
+              <details>
+                <summary className="link">Result JSON</summary>
+                <pre className="code">{JSON.stringify(latestResult, null, 2)}</pre>
+              </details>
+            </div>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

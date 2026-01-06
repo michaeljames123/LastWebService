@@ -35,6 +35,20 @@ body {
     radial-gradient(900px 600px at 82% 18%, rgba(176, 137, 104, 0.16), transparent 55%),
     linear-gradient(180deg, #050b07, var(--bg));
   color: var(--text);
+  background-size: 140% 140%;
+  animation: bg-pan 32s ease-in-out infinite alternate;
+}
+
+@keyframes bg-pan {
+  0% {
+    background-position: 0% 0%, 100% 0%, 50% 0%;
+  }
+  50% {
+    background-position: 8% 6%, 92% 18%, 50% 35%;
+  }
+  100% {
+    background-position: 0% 18%, 100% 32%, 50% 70%;
+  }
 }
 
 a {
@@ -510,6 +524,18 @@ textarea {
 .scan-actions {
   display: grid;
   gap: 10px;
+}
+
+.scan-results-wide {
+  margin-top: 24px;
+}
+
+.scan-results-wide-image {
+  display: block;
+  width: 100%;
+  max-height: 520px;
+  object-fit: cover;
+  border-radius: 16px;
 }
 
 .code {
