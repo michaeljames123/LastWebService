@@ -533,8 +533,9 @@ textarea {
 .scan-results-wide-image {
   display: block;
   width: 100%;
-  max-height: 520px;
-  object-fit: cover;
+  height: auto;
+  max-height: 720px;
+  object-fit: contain;
   border-radius: 16px;
 }
 
