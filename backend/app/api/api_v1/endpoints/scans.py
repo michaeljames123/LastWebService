@@ -59,13 +59,29 @@ def _compute_field_health(result: dict) -> dict:
         health_percent = max(0, min(100, round(100 * (1 - disease_count / total))))
 
     if disease_count == 0:
-        recommendation = "No disease detected. Field health looks good."
+        recommendation = (
+            "No disease indicators were found in this scan. Maintain regular scouting and record "
+            "keeping, keep irrigation and fertilization on schedule, and avoid unnecessary "
+            "chemical applications."
+        )
     elif health_percent >= 70:
-        recommendation = "Mild disease presence detected. Monitor affected areas and consider targeted treatment."
+        recommendation = (
+            "Early or mild disease pressure detected. Mark the affected spots from the scan, scout "
+            "those rows on the ground, and consider targeted treatment only in hotspots. Monitor "
+            "these areas over the next 3–7 days."
+        )
     elif health_percent >= 40:
-        recommendation = "Moderate disease presence detected. Plan treatment for affected zones soon."
+        recommendation = (
+            "Moderate disease presence detected. Prioritise treatment of the affected blocks, "
+            "following local agronomy or extension guidelines for product choice and rates. Improve "
+            "airflow in the canopy where possible and avoid prolonged leaf wetness from irrigation."
+        )
     else:
-        recommendation = "Severe disease presence detected. Prioritize immediate treatment and consider expert advice."
+        recommendation = (
+            "Severe disease indicators detected in this frame. Consult an agronomist or local "
+            "extension officer as soon as possible, plan immediate treatment for the worst areas, "
+            "and review crop rotation, residue management, and variety selection for future seasons."
+        )
 
     return {
         "field_health_percent": health_percent,
@@ -100,6 +116,7 @@ async def create_my_scan(
     flight_duration: str = Form(...),
     drone_altitude: str = Form(...),
     location: str = Form(...),
+    field_size: str = Form(""),
     captured_at: str = Form(...),
 ) -> ScanOut:
     ext = os.path.splitext(file.filename or "")[1] or ".jpg"
@@ -121,6 +138,7 @@ async def create_my_scan(
         "flight_duration": flight_duration,
         "altitude": drone_altitude,
         "location": location,
+        "field_size": field_size,
         "captured_at": captured_at,
     }
 

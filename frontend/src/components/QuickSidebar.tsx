@@ -26,7 +26,7 @@ export default function QuickSidebar() {
         type="button"
         className="quick-sidebar-fab"
         aria-label="Open shortcuts sidebar"
-        onClick={() => setOpen(true)}
+        onClick={() => setOpen((prev) => !prev)}
       >
         ≡
       </button>

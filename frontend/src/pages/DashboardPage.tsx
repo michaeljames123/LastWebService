@@ -27,6 +27,7 @@ export default function DashboardPage() {
   const [flightDuration, setFlightDuration] = useState("");
   const [droneAltitude, setDroneAltitude] = useState("");
   const [location, setLocation] = useState("");
+  const [fieldSize, setFieldSize] = useState("");
   const [capturedAt, setCapturedAt] = useState("");
   const [scanImages, setScanImages] = useState<Record<number, string | null>>({});
 
@@ -176,6 +177,7 @@ export default function DashboardPage() {
     setFlightDuration("");
     setDroneAltitude("");
     setLocation("");
+    setFieldSize("");
     setCapturedAt("");
     setError(null);
     const input = document.getElementById("scan-file") as HTMLInputElement | null;
@@ -217,8 +219,8 @@ export default function DashboardPage() {
       return;
     }
 
-    if (!droneName || !flightDuration || !droneAltitude || !location || !capturedAt) {
-      setError("Please fill in all drone details");
+    if (!droneName || !flightDuration || !droneAltitude || !location || !fieldSize || !capturedAt) {
+      setError("Please fill in all drone details, including field size");
       return;
     }
 
@@ -230,6 +232,7 @@ export default function DashboardPage() {
         flight_duration: flightDuration,
         drone_altitude: droneAltitude,
         location,
+        field_size: fieldSize,
         captured_at: capturedAt,
       });
       setScans((prev) => [created, ...prev]);
@@ -310,6 +313,13 @@ export default function DashboardPage() {
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
               />
+              <input
+                className="input"
+                type="text"
+                placeholder="Field size (e.g. 2 hectares or 5 acres)"
+                value={fieldSize}
+                onChange={(e) => setFieldSize(e.target.value)}
+              />
               <label className="small" style={{ marginTop: 4 }}>
                 Capture date &amp; time
               </label>
@@ -360,6 +370,7 @@ export default function DashboardPage() {
                   <div className="small" style={{ marginTop: 6 }}>
                     Drone: {latestDrone.name || "—"} • Altitude: {latestDrone.altitude || "—"} •
                     Duration: {latestDrone.flight_duration || "—"}
+                    {latestDrone.field_size ? ` • Field size: ${latestDrone.field_size}` : ""}
                   </div>
                 ) : null}
                 <div className="small" style={{ marginTop: 8 }}>
@@ -415,6 +426,7 @@ export default function DashboardPage() {
                   <div className="small" style={{ marginTop: 4 }}>
                     Drone: {latestDrone.name || "—"} • Altitude: {latestDrone.altitude || "—"} • Duration:{" "}
                     {latestDrone.flight_duration || "—"}
+                    {latestDrone.field_size ? ` • Field size: ${latestDrone.field_size}` : ""}
                   </div>
                   <div className="small" style={{ marginTop: 2 }}>
                     Location: {latestDrone.location || "—"}
