@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 
 import { API_BASE_URL, estimateField } from "../api/api";
 import { useAuth } from "../auth/AuthContext";
@@ -17,21 +17,7 @@ export default function EstimateFieldPage() {
   const [originalBlobUrl, setOriginalBlobUrl] = useState<string | null>(null);
   const [showBoxes, setShowBoxes] = useState(true);
 
-  useEffect(() => {
-    return () => {
-      if (annotatedBlobUrl) {
-        window.URL.revokeObjectURL(annotatedBlobUrl);
-      }
-      if (originalBlobUrl) {
-        window.URL.revokeObjectURL(originalBlobUrl);
-      }
-    };
-  }, [annotatedBlobUrl, originalBlobUrl]);
-
-  async function loadImage(
-    imageUrl: string,
-    setter: (updater: (prev: string | null) => string | null) => void
-  ) {
+  async function loadImage(imageUrl: string, setter: (url: string | null) => void) {
     if (!token) return;
 
     const res = await fetch(`${API_BASE_URL}${imageUrl}`, {
@@ -57,12 +43,7 @@ export default function EstimateFieldPage() {
     const blob = await res.blob();
     const blobUrl = window.URL.createObjectURL(blob);
 
-    setter((prev: string | null) => {
-      if (prev) {
-        window.URL.revokeObjectURL(prev);
-      }
-      return blobUrl;
-    });
+    setter(blobUrl);
   }
 
   async function onAnalyze(e: React.FormEvent) {
@@ -81,18 +62,8 @@ export default function EstimateFieldPage() {
 
     setBusy(true);
     setResult(null);
-    setAnnotatedBlobUrl((prev) => {
-      if (prev) {
-        window.URL.revokeObjectURL(prev);
-      }
-      return null;
-    });
-    setOriginalBlobUrl((prev) => {
-      if (prev) {
-        window.URL.revokeObjectURL(prev);
-      }
-      return null;
-    });
+    setAnnotatedBlobUrl(null);
+    setOriginalBlobUrl(null);
     setShowBoxes(true);
 
     try {
@@ -141,112 +112,106 @@ export default function EstimateFieldPage() {
   }
 
   return (
-    <div className="container" style={{ padding: "34px 0 54px" }}>
-      <div className="grid grid-2">
-        <div>
-          <h1 className="h1">Estimate Field</h1>
-          <p className="p" style={{ marginTop: 14 }}>
-            Upload an image to run Roboflow detection and get a bounding-box annotated result.
-          </p>
+    <div className="container" style={{ padding: "24px 0 38px" }}>
+      <h1 className="h1">Estimate Field</h1>
+      <p className="p" style={{ marginTop: 14 }}>
+        Upload an image to run Roboflow detection and get a bounding-box annotated result.
+      </p>
 
-          <div className="hr" />
+      <div className="hr" />
 
-          <Card className="panel">
-            <div className="h2">Upload image</div>
-            <form onSubmit={onAnalyze} className="form" style={{ marginTop: 10 }}>
-              <input
-                id="estimate-file"
-                className="input"
-                type="file"
-                accept="image/*"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+      <Card className="panel">
+        <div className="h2">Upload image</div>
+        <form onSubmit={onAnalyze} className="form" style={{ marginTop: 10 }}>
+          <input
+            id="estimate-file"
+            className="input"
+            type="file"
+            accept="image/*"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
+          {error ? <div className="notice bad">{error}</div> : null}
+          <div className="form-actions">
+            <Button type="submit" disabled={busy}>
+              {busy ? "Analyzing…" : "Analyze"}
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setFile(null)}>
+              Reset
+            </Button>
+          </div>
+          <div className="small">Roboflow results are rendered locally and saved in backend uploads/.</div>
+        </form>
+      </Card>
+
+      <Card className="panel" style={{ marginTop: 20 }}>
+        <div className="h2">Result</div>
+        <div className="small" style={{ marginTop: 8 }}>
+          {result
+            ? `Predictions: ${predCount} • Corn plants detected: ${cornCount}`
+            : "No result yet. Upload an image to start."}
+        </div>
+
+        <div className="hr" />
+
+        <div className="estimate-layout">
+          <div>
+            <div className="small" style={{ marginBottom: 8 }}>
+              <label className="sidebar-toggle">
+                <span>Show boxes on image</span>
+                <input
+                  type="checkbox"
+                  checked={showBoxes}
+                  onChange={(e) => setShowBoxes(e.target.checked)}
+                />
+              </label>
+            </div>
+
+            {displayImageUrl ? (
+              <img
+                src={displayImageUrl}
+                alt={showBoxes && annotatedBlobUrl ? "Annotated result" : "Original image"}
+                className="estimate-main-image"
               />
-              {error ? <div className="notice bad">{error}</div> : null}
-              <div className="form-actions">
-                <Button type="submit" disabled={busy}>
-                  {busy ? "Analyzing…" : "Analyze"}
-                </Button>
-                <Button type="button" variant="ghost" onClick={() => setFile(null)}>
-                  Reset
-                </Button>
+            ) : (
+              <div className="small">Result image will appear here after analysis.</div>
+            )}
+
+            {result ? (
+              <div style={{ marginTop: 14 }}>
+                <details>
+                  <summary className="link">Predictions JSON</summary>
+                  <pre className="code">{JSON.stringify(result, null, 2)}</pre>
+                </details>
               </div>
-              <div className="small">Roboflow results are rendered locally and saved in backend uploads/.</div>
-            </form>
-          </Card>
-        </div>
+            ) : null}
+          </div>
 
-        <div>
-          <Card className="panel">
-            <div className="h2">Result</div>
-            <div className="small" style={{ marginTop: 8 }}>
-              {result
-                ? `Predictions: ${predCount} • Corn plants detected: ${cornCount}`
-                : "No result yet. Upload an image to start."}
-            </div>
-
-            <div className="hr" />
-
-            <div className="estimate-layout">
-              <div>
-                <div className="small" style={{ marginBottom: 8 }}>
-                  <label className="sidebar-toggle">
-                    <span>Show boxes on image</span>
-                    <input
-                      type="checkbox"
-                      checked={showBoxes}
-                      onChange={(e) => setShowBoxes(e.target.checked)}
-                    />
-                  </label>
-                </div>
-
-                {displayImageUrl ? (
-                  <img
-                    src={displayImageUrl}
-                    alt={showBoxes && annotatedBlobUrl ? "Annotated result" : "Original image"}
-                    className="estimate-main-image"
-                  />
-                ) : (
-                  <div className="small">Result image will appear here after analysis.</div>
-                )}
-
-                {result ? (
-                  <div style={{ marginTop: 14 }}>
-                    <details>
-                      <summary className="link">Predictions JSON</summary>
-                      <pre className="code">{JSON.stringify(result, null, 2)}</pre>
-                    </details>
-                  </div>
-                ) : null}
+          <aside className="estimate-sidebar">
+            <div className="estimate-sidebar-card">
+              <div className="stack-title">Summary</div>
+              <div className="small" style={{ marginTop: 6 }}>
+                Predictions: {predCount}
+                <br />
+                Corn plants detected: {cornCount}
               </div>
-
-              <aside className="estimate-sidebar">
-                <div className="estimate-sidebar-card">
-                  <div className="stack-title">Summary</div>
-                  <div className="small" style={{ marginTop: 6 }}>
-                    Predictions: {predCount}
-                    <br />
-                    Corn plants detected: {cornCount}
-                  </div>
-                </div>
-                <div className="estimate-sidebar-card">
-                  <div className="stack-title">Display options</div>
-                  <div className="small" style={{ marginTop: 6 }}>
-                    Use the Show boxes switch to focus either on the raw image or the AI overlay
-                    during demonstrations.
-                  </div>
-                </div>
-                <div className="estimate-sidebar-card">
-                  <div className="stack-title">Tips</div>
-                  <div className="small" style={{ marginTop: 6 }}>
-                    Fly at a consistent altitude with good lighting. Save important scans and field
-                    notes so you can compare plant health over time.
-                  </div>
-                </div>
-              </aside>
             </div>
-          </Card>
+            <div className="estimate-sidebar-card">
+              <div className="stack-title">Display options</div>
+              <div className="small" style={{ marginTop: 6 }}>
+                Use the "Show boxes" switch to focus either on the raw image or the AI overlay
+                during demonstrations.
+              </div>
+            </div>
+            <div className="estimate-sidebar-card">
+              <div className="stack-title">Tips</div>
+              <div className="small" style={{ marginTop: 6 }}>
+                Fly at a consistent altitude with good lighting. Save important scans and field
+                notes so you can compare plant health over time.
+              </div>
+            </div>
+          </aside>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

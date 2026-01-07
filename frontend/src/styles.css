@@ -640,6 +640,8 @@ textarea {
   width: 100%;
   border-radius: 14px;
   display: block;
+  max-height: 520px;
+  object-fit: contain;
 }
 
 .estimate-sidebar {

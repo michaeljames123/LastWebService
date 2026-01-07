@@ -247,39 +247,39 @@ export default function DashboardPage() {
 
   return (
     <div className="container" style={{ padding: "24px 0 38px" }}>
-      <div className="grid grid-2">
-        <div>
-          <div className="badge">
-            <span className={`badge-dot ${modelBadge.dot}`} /> {modelBadge.text}
+      <div className="badge">
+        <span className={`badge-dot ${modelBadge.dot}`} /> {modelBadge.text}
+      </div>
+      <h1 className="h1" style={{ marginTop: 12 }}>
+        Field dashboard
+      </h1>
+      <p className="p" style={{ marginTop: 14 }}>
+        Welcome{auth.user?.full_name ? `, ${auth.user.full_name}` : ""}. Upload an image to generate a
+        scan result and save it in your database.
+      </p>
+
+      <div className="hr" />
+
+      <Card className="panel">
+        <div className="h2">AI brain status</div>
+        <div className="small" style={{ marginTop: 8 }}>
+          Model path: {status?.model_path ?? "—"}
+        </div>
+        {!status?.available && status?.reason ? (
+          <div className="notice bad" style={{ marginTop: 12 }}>
+            {status.reason}
           </div>
-          <h1 className="h1" style={{ marginTop: 12 }}>
-            Field dashboard
-          </h1>
-          <p className="p" style={{ marginTop: 14 }}>
-            Welcome{auth.user?.full_name ? `, ${auth.user.full_name}` : ""}. Upload an image to
-            generate a scan result and save it in your database.
-          </p>
+        ) : null}
+        {status?.available ? (
+          <div className="notice ok" style={{ marginTop: 12 }}>
+            Model loaded. Scans will run inference.
+          </div>
+        ) : null}
+      </Card>
 
-          <div className="hr" />
-
+      <div className="grid grid-2" style={{ marginTop: 16 }}>
+        <div>
           <Card className="panel">
-            <div className="h2">AI brain status</div>
-            <div className="small" style={{ marginTop: 8 }}>
-              Model path: {status?.model_path ?? "—"}
-            </div>
-            {!status?.available && status?.reason ? (
-              <div className="notice bad" style={{ marginTop: 12 }}>
-                {status.reason}
-              </div>
-            ) : null}
-            {status?.available ? (
-              <div className="notice ok" style={{ marginTop: 12 }}>
-                Model loaded. Scans will run inference.
-              </div>
-            ) : null}
-          </Card>
-
-          <Card className="panel" style={{ marginTop: 16 }}>
             <div className="h2">Upload a new scan</div>
             <form onSubmit={onUpload} className="form" style={{ marginTop: 10 }}>
               <input
@@ -341,7 +341,7 @@ export default function DashboardPage() {
         </div>
 
         <div>
-          <Card className="panel" style={{ marginTop: 16 }}>
+          <Card className="panel">
             <div className="h2">Field health summary</div>
             <div className="small" style={{ marginTop: 8 }}>
               Overview from your most recent scan.
