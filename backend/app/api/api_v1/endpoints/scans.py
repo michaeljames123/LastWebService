@@ -239,3 +239,47 @@ def get_scan_image(
         raise HTTPException(status_code=404, detail="Image file missing")
 
     return FileResponse(path)
+
+
+@router.get("/{scan_id}/original-image")
+def get_scan_original_image(
+    scan_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(deps.get_current_active_user),
+):
+    scan = get_scan_by_id(db, scan_id=scan_id)
+    if scan is None or scan.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Scan not found")
+
+    original_name = os.path.basename(scan.image_filename)
+    original_path = os.path.join(settings.UPLOAD_DIR, original_name)
+    if os.path.exists(original_path):
+        return FileResponse(original_path)
+
+    image_b64: str | None = None
+    try:
+        parsed = json.loads(scan.result_json)
+        if isinstance(parsed, dict):
+            img_val = parsed.get("image")
+            if isinstance(img_val, str) and img_val.strip():
+                image_b64 = img_val.strip()
+    except Exception:
+        image_b64 = None
+
+    if image_b64:
+        try:
+            media_type = "image/jpeg"
+            data_str = image_b64
+            if data_str.startswith("data:"):
+                header, _, b64_data = data_str.partition(",")
+                if ";base64" in header:
+                    mt = header.split(":", 1)[1].split(";", 1)[0]
+                    if mt:
+                        media_type = mt
+                data_str = b64_data or ""
+            raw = base64.b64decode(data_str)
+            return Response(content=raw, media_type=media_type)
+        except Exception:
+            pass
+
+    raise HTTPException(status_code=404, detail="Original image missing")
