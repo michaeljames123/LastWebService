@@ -7,6 +7,12 @@ export default function Navbar() {
   const auth = useAuth();
   const navigate = useNavigate();
 
+  function openSidebar() {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("agridronescan:openSidebar"));
+    }
+  }
+
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     isActive ? "nav-link active" : "nav-link";
 
@@ -44,6 +50,14 @@ export default function Navbar() {
         <div className="nav-actions">
           {auth.token ? (
             <>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Open quick sidebar"
+                onClick={openSidebar}
+              >
+                ☰
+              </Button>
               {auth.user ? (
                 <Button
                   variant="ghost"
@@ -66,6 +80,14 @@ export default function Navbar() {
             </>
           ) : (
             <>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Open quick sidebar"
+                onClick={openSidebar}
+              >
+                ☰
+              </Button>
               <Button variant="ghost" onClick={() => navigate("/login")}> 
                 Login
               </Button>

@@ -157,6 +157,8 @@ export default function EstimateFieldPage() {
   const yieldSummary =
     typeof yieldEstimate?.summary === "string" ? yieldEstimate.summary : null;
 
+  const hasDetections = predCount > 0;
+
   let displayImageUrl: string | null = null;
   if (showBoxes) {
     displayImageUrl = annotatedBlobUrl || originalBlobUrl;
@@ -166,7 +168,7 @@ export default function EstimateFieldPage() {
 
   return (
     <div className="container" style={{ padding: "24px 0 38px" }}>
-      <h1 className="h1">Estimate Field</h1>
+      <h1 className="h1">Estimation Yield</h1>
       <p className="p" style={{ marginTop: 14 }}>
         Upload an image to run CVAT detection and get a bounding-box annotated yield result.
       </p>
@@ -192,7 +194,7 @@ export default function EstimateFieldPage() {
               Reset
             </Button>
           </div>
-          <div className="small">Roboflow results are rendered locally and saved in backend uploads/.</div>
+          <div className="small">Model YOLOV8 results are rendered locally and saved in backend uploads/.</div>
         </form>
       </Card>
 
@@ -200,7 +202,7 @@ export default function EstimateFieldPage() {
         <div className="h2">Result</div>
         <div className="small" style={{ marginTop: 8 }}>
           {result
-            ? `Predictions: ${predCount} • Corn plants detected: ${cornCount}`
+            ? `Predictions: ${predCount} • Estimated corn plants: ${cornCount}`
             : "No result yet. Upload an image to start."}
         </div>
 
@@ -242,41 +244,82 @@ export default function EstimateFieldPage() {
           <aside className="estimate-sidebar">
             <div className="estimate-sidebar-card">
               <div className="stack-title">Summary</div>
-              <div className="small" style={{ marginTop: 6 }}>
-                Predictions: {predCount}
-                <br />
-                Corn plants detected: {cornCount}
-                {overallYieldIndex !== null ? (
-                  <>
-                    <br />
-                    Estimated yield index: {overallYieldIndex}%
-                  </>
-                ) : null}
-              </div>
-              {yieldSummary ? (
+              {result ? (
+                <>
+                  <div className="estimate-metric-row">
+                    <div className="estimate-metric">
+                      <div className="estimate-metric-label">Predictions</div>
+                      <div className="estimate-metric-value">{predCount}</div>
+                    </div>
+                    <div className="estimate-metric">
+                      <div className="estimate-metric-label">Estimated corn plants</div>
+                      <div className="estimate-metric-value">{cornCount}</div>
+                    </div>
+                    {overallYieldIndex !== null ? (
+                      <div className="estimate-metric">
+                        <div className="estimate-metric-label">Yield index</div>
+                        <div className="estimate-metric-value">{overallYieldIndex}%</div>
+                      </div>
+                    ) : null}
+                  </div>
+                  {yieldSummary ? (
+                    <div className="small" style={{ marginTop: 8 }}>
+                      {yieldSummary}
+                    </div>
+                  ) : null}
+                  {hasDetections &&
+                  (kernelScore !== null || discolorationIndex !== null || drynessIndex !== null) ? (
+                    <div className="estimate-metric-bars">
+                      {kernelScore !== null ? (
+                        <div className="metric-bar">
+                          <div className="metric-bar-header">
+                            <span>Kernel development</span>
+                            <span>{kernelScore}%</span>
+                          </div>
+                          <div className="metric-bar-track">
+                            <div
+                              className="metric-bar-fill positive"
+                              style={{ width: `${kernelScore}%` }}
+                            />
+                          </div>
+                        </div>
+                      ) : null}
+                      {discolorationIndex !== null ? (
+                        <div className="metric-bar">
+                          <div className="metric-bar-header">
+                            <span>Discoloration index</span>
+                            <span>{discolorationIndex}%</span>
+                          </div>
+                          <div className="metric-bar-track">
+                            <div
+                              className="metric-bar-fill warning"
+                              style={{ width: `${discolorationIndex}%` }}
+                            />
+                          </div>
+                        </div>
+                      ) : null}
+                      {drynessIndex !== null ? (
+                        <div className="metric-bar">
+                          <div className="metric-bar-header">
+                            <span>Leaf dryness index</span>
+                            <span>{drynessIndex}%</span>
+                          </div>
+                          <div className="metric-bar-track">
+                            <div
+                              className="metric-bar-fill negative"
+                              style={{ width: `${drynessIndex}%` }}
+                            />
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </>
+              ) : (
                 <div className="small" style={{ marginTop: 6 }}>
-                  {yieldSummary}
+                  No result yet. Upload an image to start.
                 </div>
-              ) : null}
-              {kernelScore !== null || discolorationIndex !== null || drynessIndex !== null ? (
-                <div className="small" style={{ marginTop: 6 }}>
-                  {kernelScore !== null ? (
-                    <>
-                      Kernel development: {kernelScore}%
-                      <br />
-                    </>
-                  ) : null}
-                  {discolorationIndex !== null ? (
-                    <>
-                      Discoloration index: {discolorationIndex}%
-                      <br />
-                    </>
-                  ) : null}
-                  {drynessIndex !== null ? (
-                    <>Leaf dryness index: {drynessIndex}%</>
-                  ) : null}
-                </div>
-              ) : null}
+              )}
             </div>
             <div className="estimate-sidebar-card">
               <div className="stack-title">Display options</div>

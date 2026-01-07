@@ -164,7 +164,21 @@ def _render_bboxes_with_labels(*, image_path: str, predictions: list[dict[str, A
     base.save(output_path)
 
 
-def _compute_yield_estimate(predictions: list[dict[str, Any]]) -> dict[str, Any]:
+def _compute_yield_estimate(
+    predictions: list[dict[str, Any]], image_path: str | None = None
+) -> dict[str, Any]:
+    """Estimate yield-related indices from detections.
+
+    This combines two signals:
+    - Keyword-based labels (for models that already return disease/stress classes)
+    - Pixel color analysis inside each bounding box (for models that only return
+      generic "corn" or "plant" labels).
+
+    The color analysis examines the balance of green vs yellow/brown pixels to
+    derive discoloration and dryness indices, so that stressed plants no longer
+    appear as all 0% when the model has no disease-specific classes.
+    """
+
     clean: list[dict[str, Any]] = [p for p in predictions if isinstance(p, dict)]
     total = len(clean)
 
@@ -186,6 +200,7 @@ def _compute_yield_estimate(predictions: list[dict[str, Any]]) -> dict[str, Any]
             },
         }
 
+    # 1) Label-based heuristic (works when the model exposes disease/stress classes)
     kernel_keywords = (
         "ear",
         "cob",
@@ -249,6 +264,61 @@ def _compute_yield_estimate(predictions: list[dict[str, Any]]) -> dict[str, Any]
     kernel_score = _pct(effective_kernel, total)
     discolor_index = _pct(discolor_like, total)
     dryness_index = _pct(dryness_like, total)
+
+    # 2) Optional color-based analysis inside each bounding box
+    #    This helps when all labels are just "corn" but leaves are visibly yellow/dry.
+    if image_path is not None:
+        try:
+            Image, _, _ = _require_pillow()
+            img = Image.open(image_path).convert("RGB")
+            width, height = img.size
+
+            green_px = 0
+            yellow_px = 0
+            brown_px = 0
+
+            for p in clean:
+                xyxy = _xyxy_from_pred(p)
+                if not xyxy:
+                    continue
+
+                x1, y1, x2, y2 = xyxy
+                x1_i = max(0, min(width - 1, int(x1)))
+                y1_i = max(0, min(height - 1, int(y1)))
+                x2_i = max(0, min(width, int(x2)))
+                y2_i = max(0, min(height, int(y2)))
+                if x2_i <= x1_i or y2_i <= y1_i:
+                    continue
+
+                crop = img.crop((x1_i, y1_i, x2_i, y2_i))
+                # Downsample for efficiency; we only need approximate color ratios.
+                small = crop.resize((96, 96))
+                hsv = small.convert("HSV")
+
+                for (h, s, v) in hsv.getdata():
+                    # h, s, v are 0-255 in Pillow's HSV.
+                    if v < 40 or s < 25:
+                        # Very dark or desaturated -> likely dry/brown tissue or soil.
+                        brown_px += 1
+                    else:
+                        # Rough hue bands: green ~ [60, 140], yellow ~ [25, 60].
+                        if 60 <= h <= 140:
+                            green_px += 1
+                        elif 25 <= h < 60:
+                            yellow_px += 1
+                        else:
+                            brown_px += 1
+
+            total_px = green_px + yellow_px + brown_px
+            if total_px > 0:
+                # Override indices with color-derived ratios so stressed leaves
+                # actually move the dryness/discoloration needles.
+                kernel_score = _pct(green_px, total_px)
+                discolor_index = _pct(yellow_px, total_px)
+                dryness_index = _pct(brown_px, total_px)
+        except Exception:
+            # If anything goes wrong with image analysis, fall back to label-only logic.
+            pass
 
     stress_ratio = (discolor_index + dryness_index) / 200.0
     health_factor = max(0.0, min(1.0, 1.0 - stress_ratio))
@@ -343,7 +413,7 @@ async def estimate_field(
     if not isinstance(predictions, list):
         predictions = []
 
-    yield_estimate = _compute_yield_estimate(predictions)
+    yield_estimate = _compute_yield_estimate(predictions, image_path=original_path)
 
     annotated_filename = f"{stem}_rf.jpg"
     annotated_path = os.path.join(settings.UPLOAD_DIR, annotated_filename)

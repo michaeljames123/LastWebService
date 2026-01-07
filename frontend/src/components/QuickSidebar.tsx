@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/AuthContext";
@@ -8,6 +8,19 @@ export default function QuickSidebar() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const auth = useAuth();
+
+  useEffect(() => {
+    function handleOpen() {
+      setOpen(true);
+    }
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("agridronescan:openSidebar", handleOpen);
+      return () => window.removeEventListener("agridronescan:openSidebar", handleOpen);
+    }
+
+    return undefined;
+  }, []);
 
   function go(path: string) {
     navigate(path);
