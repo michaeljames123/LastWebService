@@ -34,3 +34,26 @@ export type Scan = {
   result: any;
   created_at: string;
 };
+
+export type AdminOverview = {
+  total_users: number;
+  total_active_users: number;
+  total_scans: number;
+  scans_last_7_days: { date: string; count: number }[];
+  scans_by_type: {
+    dashboard: number;
+    estimate_field: number;
+    other: number;
+  };
+  admin_email: string;
+  model_path: string;
+};
+
+export type AdminScan = {
+  id: number;
+  user_id: number;
+  image_filename: string;
+  image_url: string;
+  result: any;
+  created_at: string;
+};

@@ -79,6 +79,11 @@ export default function QuickSidebar() {
             <Button size="sm" variant="secondary" onClick={() => go("/contact")}>
               Contact
             </Button>
+            {auth.user && (auth.user as any).is_admin ? (
+              <Button size="sm" variant="secondary" onClick={() => go("/admin")}>
+                Admin
+              </Button>
+            ) : null}
           </div>
 
           <div style={{ marginTop: "auto", paddingTop: 8 }}>

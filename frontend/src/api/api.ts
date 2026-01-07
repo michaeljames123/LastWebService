@@ -1,4 +1,4 @@
-import type { AiStatus, ContactMessage, Scan, TokenResponse, User } from "../types";
+import type { AdminOverview, AdminScan, AiStatus, ContactMessage, Scan, TokenResponse, User } from "../types";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -138,6 +138,43 @@ export function estimateField(token: string, file: File): Promise<any> {
   return request<any>("/api/estimate-field/", {
     method: "POST",
     body: form,
+    token,
+  });
+}
+
+export function getAdminOverview(token: string): Promise<AdminOverview> {
+  return request<AdminOverview>("/api/admin/overview", { token });
+}
+
+export function adminListUsers(token: string): Promise<User[]> {
+  return request<User[]>("/api/admin/users", { token });
+}
+
+export function adminSetUserActive(token: string, userId: number, isActive: boolean): Promise<User> {
+  return request<User>(`/api/admin/users/${userId}/active`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ is_active: isActive }),
+    token,
+  });
+}
+
+export function adminDeleteUser(token: string, userId: number): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`/api/admin/users/${userId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+export function adminListScans(token: string): Promise<AdminScan[]> {
+  return request<AdminScan[]>("/api/admin/scans", { token });
+}
+
+export function adminDeleteScan(token: string, scanId: number): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(`/api/admin/scans/${scanId}`, {
+    method: "DELETE",
     token,
   });
 }

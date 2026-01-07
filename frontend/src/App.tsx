@@ -1,9 +1,12 @@
 import { Route, Routes } from "react-router-dom";
 
 import { AuthProvider } from "./auth/AuthContext";
+import RequireAdmin from "./auth/RequireAdmin";
 import RequireAuth from "./auth/RequireAuth";
 import Shell from "./layout/Shell";
 import AboutPage from "./pages/AboutPage";
+import AdminDashboardPage from "./pages/AdminDashboardPage";
+import AdminLoginPage from "./pages/AdminLoginPage";
 import ContactPage from "./pages/ContactPage";
 import DashboardPage from "./pages/DashboardPage";
 import EstimateFieldPage from "./pages/EstimateFieldPage";
@@ -23,6 +26,7 @@ export default function App() {
           <Route path="contact" element={<ContactPage />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
+          <Route path="adminlogin" element={<AdminLoginPage />} />
           <Route
             path="dashboard"
             element={
@@ -45,6 +49,14 @@ export default function App() {
               <RequireAuth>
                 <EstimateFieldPage />
               </RequireAuth>
+            }
+          />
+          <Route
+            path="admin"
+            element={
+              <RequireAdmin>
+                <AdminDashboardPage />
+              </RequireAdmin>
             }
           />
           <Route path="*" element={<NotFoundPage />} />
