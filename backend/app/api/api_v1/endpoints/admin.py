@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api import deps
@@ -84,22 +85,21 @@ def admin_list_users(
 ) -> list[UserOut]:
     return list_users(db, limit=limit, offset=offset)
 
-
-class _ToggleActiveBody(dict):
-    is_active: bool  # type: ignore[assignment]
+class ToggleActiveBody(BaseModel):
+    is_active: bool
 
 
 @router.patch("/users/{user_id}/active", response_model=UserOut)
 def admin_set_user_active(
     user_id: int,
-    body: _ToggleActiveBody,
+    body: ToggleActiveBody,
     db: Session = Depends(get_db),
     current_admin: User = Depends(deps.get_current_admin_user),
 ) -> UserOut:
     if user_id == current_admin.id:
         raise HTTPException(status_code=400, detail="You cannot change your own active status")
 
-    is_active = bool(body.get("is_active"))
+    is_active = bool(body.is_active)
     user = set_user_active(db, user_id=user_id, is_active=is_active)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
