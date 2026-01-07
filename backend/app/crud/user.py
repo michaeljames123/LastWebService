@@ -51,3 +51,33 @@ def authenticate_user(db: Session, *, identifier: str, password: str) -> Optiona
     if not verify_password(password, user.hashed_password):
         return None
     return user
+
+
+def list_users(db: Session, *, limit: int = 100, offset: int = 0) -> list[User]:
+    stmt = (
+        select(User)
+        .order_by(User.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    return list(db.execute(stmt).scalars().all())
+
+
+def set_user_active(db: Session, *, user_id: int, is_active: bool) -> Optional[User]:
+    user = get_user_by_id(db, user_id=user_id)
+    if user is None:
+        return None
+    user.is_active = is_active
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def delete_user(db: Session, *, user_id: int) -> bool:
+    user = get_user_by_id(db, user_id=user_id)
+    if user is None:
+        return False
+    db.delete(user)
+    db.commit()
+    return True

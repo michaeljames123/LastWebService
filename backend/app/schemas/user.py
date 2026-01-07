@@ -22,3 +22,4 @@ class UserOut(BaseModel):
     full_name: Optional[str] = None
     is_active: bool
     created_at: datetime
+    is_admin: bool

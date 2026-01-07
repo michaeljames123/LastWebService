@@ -23,3 +23,14 @@ class User(Base):
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+
+    @property
+    def is_admin(self) -> bool:
+        try:
+            from app.core.config import settings  # type: ignore
+        except Exception:
+            return False
+
+        email = (self.email or "").lower()
+        admin_emails = getattr(settings, "ADMIN_EMAILS", []) or []
+        return email in admin_emails

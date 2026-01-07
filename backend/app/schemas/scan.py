@@ -11,3 +11,12 @@ class ScanOut(BaseModel):
     image_url: str
     result: dict
     created_at: datetime
+
+
+class AdminScanOut(BaseModel):
+    id: int
+    user_id: int
+    image_filename: str
+    image_url: str
+    result: dict
+    created_at: datetime

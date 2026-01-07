@@ -34,3 +34,22 @@ def list_scans_for_user(db: Session, *, user_id: int, limit: int = 50) -> list[S
 
 def get_scan_by_id(db: Session, *, scan_id: int) -> Optional[Scan]:
     return db.execute(select(Scan).where(Scan.id == scan_id)).scalar_one_or_none()
+
+
+def list_all_scans(db: Session, *, limit: int = 200, offset: int = 0) -> list[Scan]:
+    stmt = (
+        select(Scan)
+        .order_by(Scan.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    return list(db.execute(stmt).scalars().all())
+
+
+def delete_scan(db: Session, *, scan_id: int) -> bool:
+    scan = get_scan_by_id(db, scan_id=scan_id)
+    if scan is None:
+        return False
+    db.delete(scan)
+    db.commit()
+    return True

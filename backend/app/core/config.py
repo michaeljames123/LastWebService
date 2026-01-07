@@ -31,6 +31,12 @@ class Settings:
     ALGORITHM = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
+    ADMIN_EMAILS = [
+        e.strip().lower()
+        for e in os.getenv("ADMIN_EMAILS", "").split(",")
+        if e.strip()
+    ]
+
     _cors_origins = os.getenv("CORS_ORIGINS", "*")
 
     # If wildcard is present, treat as allow-all for local development
