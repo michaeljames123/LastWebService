@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { listScans } from "../api/api";
+import { API_BASE_URL, listScans } from "../api/api";
 import { useAuth } from "../auth/AuthContext";
 import Card from "../components/Card";
 import type { Scan } from "../types";
@@ -11,6 +11,7 @@ export default function ProfilePage() {
 
   const [scans, setScans] = useState<Scan[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [scanImages, setScanImages] = useState<Record<number, string | null>>({});
 
   useEffect(() => {
     if (!token) return;
@@ -19,6 +20,71 @@ export default function ProfilePage() {
       .then(setScans)
       .catch((err: any) => setError(err?.message ?? "Failed to load scan history"));
   }, [token]);
+
+  useEffect(() => {
+    if (!token || scans.length === 0) {
+      setScanImages((prev) => {
+        Object.values(prev).forEach((url) => {
+          if (url) {
+            window.URL.revokeObjectURL(url);
+          }
+        });
+        return {};
+      });
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadImages() {
+      const next: Record<number, string | null> = {};
+
+      for (const s of scans) {
+        try {
+          const res = await fetch(`${API_BASE_URL}${s.image_url}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (!res.ok) {
+            next[s.id] = null;
+            continue;
+          }
+
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          next[s.id] = url;
+        } catch {
+          next[s.id] = null;
+        }
+      }
+
+      if (cancelled) {
+        Object.values(next).forEach((url) => {
+          if (url) {
+            window.URL.revokeObjectURL(url);
+          }
+        });
+        return;
+      }
+
+      setScanImages((prev) => {
+        Object.values(prev).forEach((url) => {
+          if (url) {
+            window.URL.revokeObjectURL(url);
+          }
+        });
+        return next;
+      });
+    }
+
+    loadImages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, scans]);
 
   const user = auth.user;
 
@@ -88,6 +154,17 @@ export default function ProfilePage() {
                             Field health: {fieldHealthPercent}%
                           </div>
                         ) : null}
+                      </div>
+
+                      <div className="scan-main">
+                        {scanImages[s.id] ? (
+                          <img
+                            src={scanImages[s.id] as string}
+                            alt={`Scan ${s.id}`}
+                          />
+                        ) : (
+                          <div className="small">Image preview not available.</div>
+                        )}
                       </div>
                     </div>
                   );

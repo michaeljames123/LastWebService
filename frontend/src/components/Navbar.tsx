@@ -14,7 +14,9 @@ export default function Navbar() {
     <header className="header">
       <div className="container header-inner">
         <div className="brand" onClick={() => navigate("/")} role="button" tabIndex={0}>
-          <div className="brand-mark" aria-hidden />
+          <div className="brand-mark">
+            <img src="/Agridronescan.png" alt="AgridroneScan logo" className="brand-logo" />
+          </div>
           <div>
             <div className="brand-name">AgridroneScan</div>
             <div className="brand-tag">Soil-to-sky intelligence</div>
