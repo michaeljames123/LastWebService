@@ -611,6 +611,21 @@ textarea {
   border-radius: 16px;
 }
 
+.scan-image-wrapper {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.scan-image-mask {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(650px 400px at 10% 0%, rgba(132, 94, 247, 0.18), transparent 55%),
+    rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  transition: opacity 160ms ease-out;
+}
+
 .health-bar {
   margin-top: 6px;
   height: 10px;
@@ -635,6 +650,69 @@ textarea {
 
 .health-bar-fill.bad {
   background: linear-gradient(90deg, #ff5a5f, #ff3b3b);
+}
+
+.scan-controls {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+@media (min-width: 600px) {
+  .scan-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.scan-slider {
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.scan-slider-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.scan-slider-range {
+  width: 100%;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  outline: none;
+}
+
+.scan-slider-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #a855f7;
+  border: 2px solid #ede9fe;
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.35);
+}
+
+.scan-slider-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #a855f7;
+  border: 2px solid #ede9fe;
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.35);
+}
+
+.scan-slider-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muted-2);
 }
 
 .estimate-layout {

@@ -30,6 +30,8 @@ export default function DashboardPage() {
   const [fieldSize, setFieldSize] = useState("");
   const [capturedAt, setCapturedAt] = useState("");
   const [scanImages, setScanImages] = useState<Record<number, string | null>>({});
+  const [confidenceThreshold, setConfidenceThreshold] = useState(40);
+  const [maskOpacity, setMaskOpacity] = useState(60);
 
   const token = auth.token;
 
@@ -170,6 +172,13 @@ export default function DashboardPage() {
     })
     .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))
     .slice(0, 5);
+
+  const filteredPredictions = latestPredictions.filter((p) => {
+    if (p.confidence == null) {
+      return true;
+    }
+    return p.confidence * 100 >= confidenceThreshold;
+  });
 
   function resetForm() {
     setFile(null);
@@ -438,13 +447,59 @@ export default function DashboardPage() {
                   ) : null}
                 </>
               ) : null}
+              <div className="scan-controls">
+                <div className="scan-slider">
+                  <div className="scan-slider-header">
+                    <span className="small">Confidence Threshold:</span>
+                    <span className="small" style={{ fontWeight: 600 }}>
+                      {confidenceThreshold}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={confidenceThreshold}
+                    onChange={(e) => setConfidenceThreshold(Number(e.target.value))}
+                    className="scan-slider-range"
+                  />
+                  <div className="scan-slider-footer">
+                    <span>0%</span>
+                    <span>100%</span>
+                  </div>
+                </div>
+
+                <div className="scan-slider">
+                  <div className="scan-slider-header">
+                    <span className="small">Mask opacity:</span>
+                    <span className="small" style={{ fontWeight: 600 }}>
+                      {maskOpacity}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={maskOpacity}
+                    onChange={(e) => setMaskOpacity(Number(e.target.value))}
+                    className="scan-slider-range"
+                  />
+                  <div className="scan-slider-footer">
+                    <span>0%</span>
+                    <span>100%</span>
+                  </div>
+                </div>
+              </div>
               <div style={{ marginTop: 12 }}>
                 {latestScan && scanImages[latestScan.id] ? (
-                  <img
-                    src={scanImages[latestScan.id] as string}
-                    alt={`Scan ${latestScan.id}`}
-                    className="scan-results-wide-image"
-                  />
+                  <div className="scan-image-wrapper">
+                    <img
+                      src={scanImages[latestScan.id] as string}
+                      alt={`Scan ${latestScan.id}`}
+                      className="scan-results-wide-image"
+                    />
+                    <div className="scan-image-mask" style={{ opacity: maskOpacity / 100 }} />
+                  </div>
                 ) : (
                   <div className="small">Image preview not available.</div>
                 )}
@@ -465,9 +520,13 @@ export default function DashboardPage() {
                 <div className="small" style={{ marginTop: 6 }}>
                   No prediction details available for this scan.
                 </div>
+              ) : filteredPredictions.length === 0 ? (
+                <div className="small" style={{ marginTop: 6 }}>
+                  No predictions above the current confidence threshold.
+                </div>
               ) : (
                 <div className="prediction-list">
-                  {latestPredictions.map((p) => (
+                  {filteredPredictions.map((p) => (
                     <div className="prediction-item" key={p.id}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <span className="small" style={{ opacity: 0.7 }}>
