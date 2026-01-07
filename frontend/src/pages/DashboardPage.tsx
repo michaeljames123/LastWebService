@@ -14,6 +14,13 @@ function formatTime(iso: string) {
   }
 }
 
+type DetectionPolygon = {
+  id: number;
+  points: { x: number; y: number }[];
+  confidence: number | null;
+  kind: "healthy" | "irregular" | "disease";
+};
+
 export default function DashboardPage() {
   const auth = useAuth();
 
@@ -69,7 +76,8 @@ export default function DashboardPage() {
 
       for (const s of scans) {
         try {
-          const res = await fetch(`${API_BASE_URL}${s.image_url}`, {
+          const originalPath = s.image_url.replace(/\/image$/, "/original-image");
+          const res = await fetch(`${API_BASE_URL}${originalPath}`, {
             headers: {
               Authorization: `Bearer ${token}`,
             },
@@ -179,6 +187,76 @@ export default function DashboardPage() {
     }
     return p.confidence * 100 >= confidenceThreshold;
   });
+
+  const detectionPolygons: DetectionPolygon[] = useMemo(() => {
+    const raw = Array.isArray(latestResult?.detections) ? (latestResult.detections as any[]) : [];
+    const out: DetectionPolygon[] = [];
+
+    raw.forEach((det, index) => {
+      if (!det || typeof det !== "object") return;
+      const anyDet = det as any;
+
+      const polyNorm = Array.isArray(anyDet.polygon_normalized) ? anyDet.polygon_normalized : null;
+      if (!polyNorm || polyNorm.length === 0) return;
+
+      const points: { x: number; y: number }[] = [];
+      for (const p of polyNorm) {
+        if (Array.isArray(p) && p.length === 2) {
+          const x = Number(p[0]);
+          const y = Number(p[1]);
+          if (Number.isFinite(x) && Number.isFinite(y)) {
+            points.push({ x, y });
+          }
+        }
+      }
+      if (points.length < 3) return;
+
+      let confidence: number | null = null;
+      if (typeof anyDet.confidence === "number") {
+        confidence = anyDet.confidence;
+      } else if (typeof anyDet.confidence === "string") {
+        const parsed = parseFloat(anyDet.confidence);
+        confidence = Number.isFinite(parsed) ? parsed : null;
+      }
+
+      const labelRaw = String(
+        anyDet.class_name ??
+          anyDet.label ??
+          anyDet.name ??
+          (typeof anyDet.class_id !== "undefined" ? anyDet.class_id : "")
+      ).toLowerCase();
+
+      let kind: "healthy" | "irregular" | "disease" = "disease";
+      if (labelRaw.includes("healthy")) {
+        kind = "healthy";
+      } else if (labelRaw.includes("irregular")) {
+        kind = "irregular";
+      } else if (
+        labelRaw.includes("disease") ||
+        labelRaw.includes("blight") ||
+        labelRaw.includes("rust") ||
+        labelRaw.includes("rot") ||
+        labelRaw.includes("wilt") ||
+        labelRaw.includes("mold") ||
+        labelRaw.includes("pest") ||
+        labelRaw.includes("infect")
+      ) {
+        kind = "disease";
+      }
+
+      out.push({ id: index + 1, points, confidence, kind });
+    });
+
+    return out;
+  }, [latestResult]);
+
+  const visiblePolygons = useMemo(
+    () =>
+      detectionPolygons.filter(
+        (p) => p.confidence == null || p.confidence * 100 >= confidenceThreshold
+      ),
+    [detectionPolygons, confidenceThreshold]
+  );
 
   function resetForm() {
     setFile(null);
@@ -498,7 +576,36 @@ export default function DashboardPage() {
                       alt={`Scan ${latestScan.id}`}
                       className="scan-results-wide-image"
                     />
-                    <div className="scan-image-mask" style={{ opacity: maskOpacity / 100 }} />
+                    {visiblePolygons.length > 0 ? (
+                      <svg
+                        className="scan-overlay"
+                        viewBox="0 0 1 1"
+                        preserveAspectRatio="none"
+                      >
+                        {visiblePolygons.map((poly) => {
+                          let color: [number, number, number];
+                          if (poly.kind === "healthy") {
+                            color = [72, 199, 116];
+                          } else if (poly.kind === "irregular") {
+                            color = [132, 94, 247];
+                          } else {
+                            color = [255, 90, 95];
+                          }
+                          const fillOpacity = Math.max(0, Math.min(1, maskOpacity / 100));
+                          return (
+                            <polygon
+                              key={poly.id}
+                              points={poly.points
+                                .map((p) => `${p.x} ${p.y}`)
+                                .join(" ")}
+                              fill={`rgba(${color[0]}, ${color[1]}, ${color[2]}, ${fillOpacity})`}
+                              stroke={`rgba(${color[0]}, ${color[1]}, ${color[2]}, 1)`}
+                              strokeWidth={0.003}
+                            />
+                          );
+                        })}
+                      </svg>
+                    ) : null}
                   </div>
                 ) : (
                   <div className="small">Image preview not available.</div>
