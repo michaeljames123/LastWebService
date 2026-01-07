@@ -106,6 +106,7 @@ export type CreateScanInput = {
   flight_duration: string;
   drone_altitude: string;
   location: string;
+  field_size: string;
   captured_at: string;
 };
 
@@ -120,6 +121,7 @@ export function createScan(token: string, input: CreateScanInput): Promise<Scan>
   form.append("flight_duration", input.flight_duration);
   form.append("drone_altitude", input.drone_altitude);
   form.append("location", input.location);
+  form.append("field_size", input.field_size);
   form.append("captured_at", input.captured_at);
 
   return request<Scan>("/api/scans/", {
