@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import uuid
@@ -8,9 +9,12 @@ from typing import Any
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
 
 from app.api import deps
 from app.core.config import settings
+from app.crud.scan import create_scan
+from app.db.session import get_db
 from app.models.user import User
 
 router = APIRouter(prefix="/estimate-field", tags=["estimate-field"])
@@ -160,10 +164,143 @@ def _render_bboxes_with_labels(*, image_path: str, predictions: list[dict[str, A
     base.save(output_path)
 
 
+def _compute_yield_estimate(predictions: list[dict[str, Any]]) -> dict[str, Any]:
+    clean: list[dict[str, Any]] = [p for p in predictions if isinstance(p, dict)]
+    total = len(clean)
+
+    if total == 0:
+        return {
+            "kernel_development_score": 0,
+            "discoloration_index": 0,
+            "leaf_dryness_index": 0,
+            "overall_yield_index": 0,
+            "summary": (
+                "No plants or ears were confidently detected in this frame, so yield "
+                "cannot be estimated from this image alone."
+            ),
+            "counts": {
+                "total_detections": 0,
+                "kernel_like": 0,
+                "discoloration_like": 0,
+                "dryness_like": 0,
+            },
+        }
+
+    kernel_keywords = (
+        "ear",
+        "cob",
+        "kernel",
+        "corn",
+        "maize",
+    )
+    discolor_keywords = (
+        "discolor",
+        "yellow",
+        "chlorosis",
+        "spot",
+        "blight",
+        "rust",
+        "lesion",
+        "mold",
+    )
+    dryness_keywords = (
+        "dry",
+        "dryness",
+        "wilt",
+        "wilting",
+        "drought",
+        "senescent",
+        "dead leaf",
+        "necrosis",
+    )
+
+    kernel_like = 0
+    discolor_like = 0
+    dryness_like = 0
+
+    for p in clean:
+        raw_label = (
+            p.get("class")
+            or p.get("class_name")
+            or p.get("label")
+            or p.get("name")
+            or ""
+        )
+        label = str(raw_label).lower()
+        if not label:
+            continue
+
+        if any(k in label for k in kernel_keywords):
+            kernel_like += 1
+        if any(k in label for k in discolor_keywords):
+            discolor_like += 1
+        if any(k in label for k in dryness_keywords):
+            dryness_like += 1
+
+    non_stress = max(0, total - discolor_like - dryness_like)
+    effective_kernel = kernel_like if kernel_like > 0 else non_stress
+
+    def _pct(num: int, denom: int) -> int:
+        if denom <= 0:
+            return 0
+        val = int(round(100 * num / denom))
+        return max(0, min(100, val))
+
+    kernel_score = _pct(effective_kernel, total)
+    discolor_index = _pct(discolor_like, total)
+    dryness_index = _pct(dryness_like, total)
+
+    stress_ratio = (discolor_index + dryness_index) / 200.0
+    health_factor = max(0.0, min(1.0, 1.0 - stress_ratio))
+    overall_yield = int(round(kernel_score * health_factor))
+    overall_yield = max(0, min(100, overall_yield))
+
+    if overall_yield >= 80:
+        level = "high"
+        guidance = (
+            "Plants in this frame appear generally healthy with good kernel development. "
+            "Maintain current management and monitor for emerging stress."
+        )
+    elif overall_yield >= 50:
+        level = "moderate"
+        guidance = (
+            "There is a mix of healthy and stressed plants. Targeted nutrient or pest "
+            "management could help protect final yield."
+        )
+    else:
+        level = "low"
+        guidance = (
+            "Stress indicators and limited kernel development suggest yield may be "
+            "constrained in this area. Consider focused scouting and intervention."
+        )
+
+    summary = (
+        f"Estimated {level} yield potential from this frame. "
+        f"Kernel development score: {kernel_score}%, "
+        f"discoloration index: {discolor_index}%, "
+        f"leaf dryness index: {dryness_index}%. {guidance}"
+    )
+
+    return {
+        "kernel_development_score": kernel_score,
+        "discoloration_index": discolor_index,
+        "leaf_dryness_index": dryness_index,
+        "overall_yield_index": overall_yield,
+        "summary": summary,
+        "counts": {
+            "total_detections": total,
+            "kernel_like": kernel_like,
+            "discoloration_like": discolor_like,
+            "dryness_like": dryness_like,
+        },
+    }
+
+
 @router.post("/")
 async def estimate_field(
     file: UploadFile = File(...),
     current_user: User = Depends(deps.get_current_active_user),
+    db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     if not settings.ROBOFLOW_API_KEY:
         raise HTTPException(
@@ -206,6 +343,8 @@ async def estimate_field(
     if not isinstance(predictions, list):
         predictions = []
 
+    yield_estimate = _compute_yield_estimate(predictions)
+
     annotated_filename = f"{stem}_rf.jpg"
     annotated_path = os.path.join(settings.UPLOAD_DIR, annotated_filename)
 
@@ -220,16 +359,31 @@ async def estimate_field(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to render Roboflow annotations: {e}")
 
-    return {
+    out: dict[str, Any] = {
         "source": "roboflow",
         "model_id": settings.ROBOFLOW_MODEL_ID,
+        "scan_type": "estimate_field",
         "predictions": predictions,
         "raw": raw,
+        "yield_estimate": yield_estimate,
         "annotated_image_filename": annotated_filename,
         "annotated_image_url": f"{settings.API_V1_STR}/estimate-field/image/{annotated_filename}",
         "original_image_filename": original_filename,
         "original_image_url": f"{settings.API_V1_STR}/estimate-field/image/{original_filename}",
     }
+
+    try:
+        create_scan(
+            db,
+            user_id=current_user.id,
+            image_filename=original_filename,
+            result_json=json.dumps(out),
+        )
+    except Exception:
+        # Persisting history should not break the main inference response.
+        pass
+
+    return out
 
 
 @router.get("/image/{image_name}")

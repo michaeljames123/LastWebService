@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import { API_BASE_URL, estimateField } from "../api/api";
 import { useAuth } from "../auth/AuthContext";
 import Button from "../components/Button";
 import Card from "../components/Card";
+
+const ESTIMATE_STORAGE_KEY = "agridronescan_estimate_latest";
 
 export default function EstimateFieldPage() {
   const auth = useAuth();
@@ -16,6 +18,32 @@ export default function EstimateFieldPage() {
   const [annotatedBlobUrl, setAnnotatedBlobUrl] = useState<string | null>(null);
   const [originalBlobUrl, setOriginalBlobUrl] = useState<string | null>(null);
   const [showBoxes, setShowBoxes] = useState(true);
+
+  useEffect(() => {
+    if (!token) return;
+
+    try {
+      const stored = window.localStorage.getItem(ESTIMATE_STORAGE_KEY);
+      if (!stored) return;
+
+      const parsed = JSON.parse(stored);
+      if (!parsed || typeof parsed !== "object") return;
+
+      setResult(parsed);
+
+      const annotatedUrl = (parsed as any).annotated_image_url;
+      const originalUrl = (parsed as any).original_image_url;
+
+      if (typeof annotatedUrl === "string" && annotatedUrl) {
+        void loadImage(annotatedUrl, setAnnotatedBlobUrl).catch(() => undefined);
+      }
+      if (typeof originalUrl === "string" && originalUrl) {
+        void loadImage(originalUrl, setOriginalBlobUrl).catch(() => undefined);
+      }
+    } catch {
+      // Ignore malformed stored data
+    }
+  }, [token]);
 
   async function loadImage(imageUrl: string, setter: (url: string | null) => void) {
     if (!token) return;
@@ -69,6 +97,11 @@ export default function EstimateFieldPage() {
     try {
       const res = await estimateField(token, file);
       setResult(res);
+      try {
+        window.localStorage.setItem(ESTIMATE_STORAGE_KEY, JSON.stringify(res));
+      } catch {
+        // Ignore storage failures (e.g. private mode)
+      }
 
       const annotatedUrl = res?.annotated_image_url;
       const originalUrl = res?.original_image_url;
@@ -104,6 +137,26 @@ export default function EstimateFieldPage() {
     }
   }
 
+  const yieldEstimate = result?.yield_estimate;
+  const overallYieldIndex =
+    yieldEstimate && typeof yieldEstimate.overall_yield_index === "number"
+      ? yieldEstimate.overall_yield_index
+      : null;
+  const kernelScore =
+    yieldEstimate && typeof yieldEstimate.kernel_development_score === "number"
+      ? yieldEstimate.kernel_development_score
+      : null;
+  const discolorationIndex =
+    yieldEstimate && typeof yieldEstimate.discoloration_index === "number"
+      ? yieldEstimate.discoloration_index
+      : null;
+  const drynessIndex =
+    yieldEstimate && typeof yieldEstimate.leaf_dryness_index === "number"
+      ? yieldEstimate.leaf_dryness_index
+      : null;
+  const yieldSummary =
+    typeof yieldEstimate?.summary === "string" ? yieldEstimate.summary : null;
+
   let displayImageUrl: string | null = null;
   if (showBoxes) {
     displayImageUrl = annotatedBlobUrl || originalBlobUrl;
@@ -115,7 +168,7 @@ export default function EstimateFieldPage() {
     <div className="container" style={{ padding: "24px 0 38px" }}>
       <h1 className="h1">Estimate Field</h1>
       <p className="p" style={{ marginTop: 14 }}>
-        Upload an image to run Roboflow detection and get a bounding-box annotated result.
+        Upload an image to run CVAT detection and get a bounding-box annotated yield result.
       </p>
 
       <div className="hr" />
@@ -193,7 +246,37 @@ export default function EstimateFieldPage() {
                 Predictions: {predCount}
                 <br />
                 Corn plants detected: {cornCount}
+                {overallYieldIndex !== null ? (
+                  <>
+                    <br />
+                    Estimated yield index: {overallYieldIndex}%
+                  </>
+                ) : null}
               </div>
+              {yieldSummary ? (
+                <div className="small" style={{ marginTop: 6 }}>
+                  {yieldSummary}
+                </div>
+              ) : null}
+              {kernelScore !== null || discolorationIndex !== null || drynessIndex !== null ? (
+                <div className="small" style={{ marginTop: 6 }}>
+                  {kernelScore !== null ? (
+                    <>
+                      Kernel development: {kernelScore}%
+                      <br />
+                    </>
+                  ) : null}
+                  {discolorationIndex !== null ? (
+                    <>
+                      Discoloration index: {discolorationIndex}%
+                      <br />
+                    </>
+                  ) : null}
+                  {drynessIndex !== null ? (
+                    <>Leaf dryness index: {drynessIndex}%</>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
             <div className="estimate-sidebar-card">
               <div className="stack-title">Display options</div>

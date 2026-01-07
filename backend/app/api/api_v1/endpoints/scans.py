@@ -130,6 +130,8 @@ async def create_my_scan(
         result["drone"] = drone_info
         if field_health is not None:
             result["field_health"] = field_health
+        if "scan_type" not in result:
+            result["scan_type"] = "dashboard"
 
     scan = create_scan(
         db,

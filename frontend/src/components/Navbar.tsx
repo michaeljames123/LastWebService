@@ -15,7 +15,7 @@ export default function Navbar() {
       <div className="container header-inner">
         <div className="brand" onClick={() => navigate("/")} role="button" tabIndex={0}>
           <div className="brand-mark">
-            <img src="/Agridronescan.png" alt="AgridroneScan logo" className="brand-logo" />
+            <img src="/AgriDroneScan.png" alt="AgridroneScan logo" className="brand-logo" />
           </div>
           <div>
             <div className="brand-name">AgridroneScan</div>

@@ -132,13 +132,27 @@ export default function ProfilePage() {
             ) : (
               <div className="scan-list">
                 {scans.map((s) => {
-                  const detections = Array.isArray((s as any).result?.detections)
-                    ? (s as any).result.detections.length
-                    : 0;
-                  const fieldHealth = (s as any).result?.field_health;
+                  const rawResult = (s as any).result ?? {};
+                  const scanType =
+                    typeof rawResult.scan_type === "string" ? rawResult.scan_type : "dashboard";
+
+                  const detectionsArray = Array.isArray(rawResult.detections)
+                    ? rawResult.detections
+                    : Array.isArray(rawResult.predictions)
+                    ? rawResult.predictions
+                    : [];
+                  const detections = detectionsArray.length;
+
+                  const fieldHealth = rawResult.field_health;
                   const fieldHealthPercent =
                     fieldHealth && typeof fieldHealth.field_health_percent === "number"
                       ? fieldHealth.field_health_percent
+                      : null;
+
+                  const yieldEstimate = rawResult.yield_estimate;
+                  const overallYieldIndex =
+                    yieldEstimate && typeof yieldEstimate.overall_yield_index === "number"
+                      ? yieldEstimate.overall_yield_index
                       : null;
 
                   return (
@@ -146,12 +160,20 @@ export default function ProfilePage() {
                       <div>
                         <div className="scan-title">Scan #{s.id}</div>
                         <div className="small">{new Date(s.created_at).toLocaleString()}</div>
+                        <div className="small" style={{ marginTop: 2 }}>
+                          Type: {scanType === "estimate_field" ? "Estimate Field" : "Dashboard scan"}
+                        </div>
                         <div className="small" style={{ marginTop: 4 }}>
                           Detections: {detections}
                         </div>
                         {fieldHealthPercent !== null ? (
                           <div className="small" style={{ marginTop: 2 }}>
                             Field health: {fieldHealthPercent}%
+                          </div>
+                        ) : null}
+                        {overallYieldIndex !== null ? (
+                          <div className="small" style={{ marginTop: 2 }}>
+                            Yield index: {overallYieldIndex}%
                           </div>
                         ) : null}
                       </div>
