@@ -10,6 +10,7 @@ const ESTIMATE_STORAGE_KEY = "agridronescan_estimate_latest";
 export default function EstimateFieldPage() {
   const auth = useAuth();
   const token = auth.token;
+  const userId = auth.user?.id;
 
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -20,10 +21,16 @@ export default function EstimateFieldPage() {
   const [showBoxes, setShowBoxes] = useState(true);
 
   useEffect(() => {
-    if (!token) return;
+    // Clear any previous in-memory state whenever the authenticated user changes
+    setResult(null);
+    setAnnotatedBlobUrl(null);
+    setOriginalBlobUrl(null);
+
+    if (!token || !userId) return;
 
     try {
-      const stored = window.localStorage.getItem(ESTIMATE_STORAGE_KEY);
+      const storageKey = `${ESTIMATE_STORAGE_KEY}_${userId}`;
+      const stored = window.localStorage.getItem(storageKey);
       if (!stored) return;
 
       const parsed = JSON.parse(stored);
@@ -43,7 +50,7 @@ export default function EstimateFieldPage() {
     } catch {
       // Ignore malformed stored data
     }
-  }, [token]);
+  }, [token, userId]);
 
   async function loadImage(imageUrl: string, setter: (url: string | null) => void) {
     if (!token) return;
@@ -98,7 +105,10 @@ export default function EstimateFieldPage() {
       const res = await estimateField(token, file);
       setResult(res);
       try {
-        window.localStorage.setItem(ESTIMATE_STORAGE_KEY, JSON.stringify(res));
+        if (userId) {
+          const storageKey = `${ESTIMATE_STORAGE_KEY}_${userId}`;
+          window.localStorage.setItem(storageKey, JSON.stringify(res));
+        }
       } catch {
         // Ignore storage failures (e.g. private mode)
       }
@@ -170,7 +180,7 @@ export default function EstimateFieldPage() {
     <div className="container" style={{ padding: "24px 0 38px" }}>
       <h1 className="h1">Estimation Yield</h1>
       <p className="p" style={{ marginTop: 14 }}>
-        Upload an image to run CVAT detection and get a bounding-box annotated yield result.
+        Upload an image to run CVAT detection and get a bounding-box annotated yield and index result.
       </p>
 
       <div className="hr" />
