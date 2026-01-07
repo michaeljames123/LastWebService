@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import base64
 import json
 import os
 import shutil
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 
 from app.api import deps
@@ -152,6 +153,7 @@ def get_scan_image(
 
     annotated_name = None
     detections: list[dict] = []
+    image_b64: str | None = None
     try:
         parsed = json.loads(scan.result_json)
         if isinstance(parsed, dict):
@@ -159,6 +161,9 @@ def get_scan_image(
             det = parsed.get("detections")
             if isinstance(det, list):
                 detections = [d for d in det if isinstance(d, dict)]
+            img_val = parsed.get("image")
+            if isinstance(img_val, str) and img_val.strip():
+                image_b64 = img_val.strip()
     except Exception:
         annotated_name = None
 
@@ -193,6 +198,24 @@ def get_scan_image(
 
     path = next((p for p in candidates if os.path.exists(p)), None)
     if not path:
+        # As a fallback (e.g. after a redeploy where uploads/ was cleared), try to
+        # decode a base64-encoded image stored in the result JSON.
+        if image_b64:
+            try:
+                media_type = "image/jpeg"
+                data_str = image_b64
+                if data_str.startswith("data:"):
+                    header, _, b64_data = data_str.partition(",")
+                    if ";base64" in header:
+                        mt = header.split(":", 1)[1].split(";", 1)[0]
+                        if mt:
+                            media_type = mt
+                    data_str = b64_data or ""
+                raw = base64.b64decode(data_str)
+                return Response(content=raw, media_type=media_type)
+            except Exception:
+                pass
+
         raise HTTPException(status_code=404, detail="Image file missing")
 
     return FileResponse(path)
