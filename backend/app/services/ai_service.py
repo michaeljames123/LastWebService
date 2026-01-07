@@ -158,7 +158,32 @@ def render_polygons_only(
         if not pts:
             continue
 
-        color = _class_color(det.get("class_id"))
+        label_raw = str(det.get("class_name") or det.get("class_id") or "")
+        label = label_raw
+        lower = label_raw.lower()
+
+        # Align polygon colors with dashboard prediction pills:
+        #   - healthy → green
+        #   - irregular areas → violet
+        #   - diseases → red
+        if "healthy" in lower:
+            color = (72, 199, 116)
+        elif "irregular" in lower:
+            color = (132, 94, 247)
+        elif (
+            "disease" in lower
+            or "blight" in lower
+            or "rust" in lower
+            or "rot" in lower
+            or "wilt" in lower
+            or "mold" in lower
+            or "pest" in lower
+            or "infect" in lower
+        ):
+            color = (255, 90, 95)
+        else:
+            color = _class_color(det.get("class_id"))
+
         outline = (color[0], color[1], color[2], 255)
 
         # Draw only crisp polygon outlines (no semi-transparent fill) so the
@@ -169,7 +194,6 @@ def render_polygons_only(
         except Exception:
             continue
 
-        label = str(det.get("class_name") or det.get("class_id") or "")
         if not label:
             continue
 
