@@ -76,21 +76,44 @@ export default function DashboardPage() {
 
       for (const s of scans) {
         try {
-          const originalPath = s.image_url.replace(/\/image$/, "/original-image");
-          const res = await fetch(`${API_BASE_URL}${originalPath}`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
+          let imageUrl: string | null = null;
 
-          if (!res.ok) {
-            next[s.id] = null;
-            continue;
+          // Prefer original image without polygons when backend supports it.
+          const originalPath = s.image_url.replace(/\/image$/, "/original-image");
+          try {
+            const resOriginal = await fetch(`${API_BASE_URL}${originalPath}`, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            });
+
+            if (resOriginal.ok) {
+              const blob = await resOriginal.blob();
+              imageUrl = window.URL.createObjectURL(blob);
+            }
+          } catch {
+            // Ignore and fall back to annotated image.
           }
 
-          const blob = await res.blob();
-          const url = window.URL.createObjectURL(blob);
-          next[s.id] = url;
+          // Fallback: use existing annotated image endpoint if original not available.
+          if (!imageUrl) {
+            try {
+              const resAnnotated = await fetch(`${API_BASE_URL}${s.image_url}`, {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              });
+
+              if (resAnnotated.ok) {
+                const blob = await resAnnotated.blob();
+                imageUrl = window.URL.createObjectURL(blob);
+              }
+            } catch {
+              // Ignore; will fall through to null.
+            }
+          }
+
+          next[s.id] = imageUrl;
         } catch {
           next[s.id] = null;
         }
@@ -267,6 +290,18 @@ export default function DashboardPage() {
     setFieldSize("");
     setCapturedAt("");
     setError(null);
+    // Reset dashboard results and sliders to initial state.
+    setScans([]);
+    setScanImages((prev) => {
+      Object.values(prev).forEach((url) => {
+        if (url) {
+          window.URL.revokeObjectURL(url);
+        }
+      });
+      return {};
+    });
+    setConfidenceThreshold(40);
+    setMaskOpacity(60);
     const input = document.getElementById("scan-file") as HTMLInputElement | null;
     if (input) {
       input.value = "";
