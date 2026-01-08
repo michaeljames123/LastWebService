@@ -6,6 +6,8 @@ import Button from "../components/Button";
 import Card from "../components/Card";
 import type { AiStatus, Scan } from "../types";
 
+const DASHBOARD_STORAGE_KEY = "agridronescan_dashboard_scans";
+
 function formatTime(iso: string) {
   try {
     return new Date(iso).toLocaleString();
@@ -41,6 +43,27 @@ export default function DashboardPage() {
   const [maskOpacity, setMaskOpacity] = useState(60);
 
   const token = auth.token;
+  const userId = auth.user?.id;
+
+  useEffect(() => {
+    if (!token || !userId) {
+      setScans([]);
+      return;
+    }
+
+    try {
+      const storageKey = `${DASHBOARD_STORAGE_KEY}_${userId}`;
+      const stored = window.localStorage.getItem(storageKey);
+      if (!stored) return;
+
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        setScans(parsed as Scan[]);
+      }
+    } catch {
+      // ignore malformed cache
+    }
+  }, [token, userId]);
 
   useEffect(() => {
     getAiStatus()
@@ -49,12 +72,20 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || !userId) return;
 
     listScans(token)
-      .then(setScans)
+      .then((data) => {
+        setScans(data);
+        try {
+          const storageKey = `${DASHBOARD_STORAGE_KEY}_${userId}`;
+          window.localStorage.setItem(storageKey, JSON.stringify(data));
+        } catch {
+          // ignore storage errors
+        }
+      })
       .catch((err: any) => setError(err?.message ?? "Failed to load scans"));
-  }, [token]);
+  }, [token, userId]);
 
   useEffect(() => {
     if (!token || scans.length === 0) {
@@ -300,6 +331,14 @@ export default function DashboardPage() {
       });
       return {};
     });
+		if (userId) {
+			try {
+				const storageKey = `${DASHBOARD_STORAGE_KEY}_${userId}`;
+				window.localStorage.removeItem(storageKey);
+			} catch {
+				// ignore storage errors
+			}
+		}
     setConfidenceThreshold(40);
     setMaskOpacity(60);
     const input = document.getElementById("scan-file") as HTMLInputElement | null;
@@ -357,7 +396,18 @@ export default function DashboardPage() {
         field_size: fieldSize,
         captured_at: capturedAt,
       });
-      setScans((prev) => [created, ...prev]);
+      setScans((prev) => {
+			const next = [created, ...prev];
+			if (userId) {
+				try {
+					const storageKey = `${DASHBOARD_STORAGE_KEY}_${userId}`;
+					window.localStorage.setItem(storageKey, JSON.stringify(next));
+				} catch {
+					// ignore storage errors
+				}
+			}
+			return next;
+		});
     } catch (err: any) {
       const msg = err?.message ?? "Failed to upload scan";
       if (msg === "Could not validate credentials") {

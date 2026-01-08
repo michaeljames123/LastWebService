@@ -176,6 +176,40 @@ export default function EstimateFieldPage() {
     displayImageUrl = originalBlobUrl || annotatedBlobUrl;
   }
 
+  function resetEstimate() {
+    setFile(null);
+    setError(null);
+    setResult(null);
+    setShowBoxes(true);
+
+    setAnnotatedBlobUrl((prev) => {
+      if (prev) {
+        window.URL.revokeObjectURL(prev);
+      }
+      return null;
+    });
+    setOriginalBlobUrl((prev) => {
+      if (prev) {
+        window.URL.revokeObjectURL(prev);
+      }
+      return null;
+    });
+
+    if (userId) {
+      try {
+        const storageKey = `${ESTIMATE_STORAGE_KEY}_${userId}`;
+        window.localStorage.removeItem(storageKey);
+      } catch {
+        // ignore storage errors
+      }
+    }
+
+    const input = document.getElementById("estimate-file") as HTMLInputElement | null;
+    if (input) {
+      input.value = "";
+    }
+  }
+
   return (
     <div className="container" style={{ padding: "24px 0 38px" }}>
       <h1 className="h1">Estimation Yield</h1>
@@ -200,7 +234,7 @@ export default function EstimateFieldPage() {
             <Button type="submit" disabled={busy}>
               {busy ? "Analyzing…" : "Analyze"}
             </Button>
-            <Button type="button" variant="ghost" onClick={() => setFile(null)}>
+            <Button type="button" variant="ghost" onClick={resetEstimate}>
               Reset
             </Button>
           </div>

@@ -96,8 +96,16 @@ export function submitContact(input: ContactInput): Promise<ContactMessage> {
   });
 }
 
-export function getAiStatus(): Promise<AiStatus> {
-  return request<AiStatus>("/api/ai/status");
+export async function getAiStatus(): Promise<AiStatus> {
+  try {
+    return await request<AiStatus>("/api/ai/status");
+  } catch (err: any) {
+    return {
+      available: false,
+      model_path: "",
+      reason: err?.message ?? "Failed to connect to AI status endpoint",
+    };
+  }
 }
 
 export type CreateScanInput = {
