@@ -57,7 +57,22 @@ export default function DashboardPage() {
   }, [token]);
 
   useEffect(() => {
-    if (!token || scans.length === 0) {
+    if (!token) {
+      // No auth: clear any cached images.
+      setScanImages((prev) => {
+        Object.values(prev).forEach((url) => {
+          if (url) {
+            window.URL.revokeObjectURL(url);
+          }
+        });
+        return {};
+      });
+      return;
+    }
+
+    const latest = scans.length > 0 ? scans[0] : null;
+    if (!latest) {
+      // No scans yet: clear image cache.
       setScanImages((prev) => {
         Object.values(prev).forEach((url) => {
           if (url) {
@@ -71,62 +86,53 @@ export default function DashboardPage() {
 
     let cancelled = false;
 
-    async function loadImages() {
-      const next: Record<number, string | null> = {};
+    async function loadLatestImage(scan: Scan) {
+      let imageUrl: string | null = null;
 
-      for (const s of scans) {
+      // Prefer original image without polygons when backend supports it.
+      const originalPath = scan.image_url.replace(/\/image$/, "/original-image");
+      try {
+        const resOriginal = await fetch(`${API_BASE_URL}${originalPath}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (resOriginal.ok) {
+          const blob = await resOriginal.blob();
+          imageUrl = window.URL.createObjectURL(blob);
+        }
+      } catch {
+        // Ignore and fall back to annotated image.
+      }
+
+      // Fallback: use existing annotated image endpoint if original not available.
+      if (!imageUrl) {
         try {
-          let imageUrl: string | null = null;
+          const resAnnotated = await fetch(`${API_BASE_URL}${scan.image_url}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
 
-          // Prefer original image without polygons when backend supports it.
-          const originalPath = s.image_url.replace(/\/image$/, "/original-image");
-          try {
-            const resOriginal = await fetch(`${API_BASE_URL}${originalPath}`, {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            });
-
-            if (resOriginal.ok) {
-              const blob = await resOriginal.blob();
-              imageUrl = window.URL.createObjectURL(blob);
-            }
-          } catch {
-            // Ignore and fall back to annotated image.
+          if (resAnnotated.ok) {
+            const blob = await resAnnotated.blob();
+            imageUrl = window.URL.createObjectURL(blob);
           }
-
-          // Fallback: use existing annotated image endpoint if original not available.
-          if (!imageUrl) {
-            try {
-              const resAnnotated = await fetch(`${API_BASE_URL}${s.image_url}`, {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-              });
-
-              if (resAnnotated.ok) {
-                const blob = await resAnnotated.blob();
-                imageUrl = window.URL.createObjectURL(blob);
-              }
-            } catch {
-              // Ignore; will fall through to null.
-            }
-          }
-
-          next[s.id] = imageUrl;
         } catch {
-          next[s.id] = null;
+          // Ignore; will fall through to null.
         }
       }
 
       if (cancelled) {
-        Object.values(next).forEach((url) => {
-          if (url) {
-            window.URL.revokeObjectURL(url);
-          }
-        });
+        if (imageUrl) {
+          window.URL.revokeObjectURL(imageUrl);
+        }
         return;
       }
+
+      const next: Record<number, string | null> = {};
+      next[scan.id] = imageUrl;
 
       setScanImages((prev) => {
         Object.values(prev).forEach((url) => {
@@ -138,7 +144,7 @@ export default function DashboardPage() {
       });
     }
 
-    loadImages();
+    void loadLatestImage(latest);
 
     return () => {
       cancelled = true;
@@ -357,7 +363,25 @@ export default function DashboardPage() {
         field_size: fieldSize,
         captured_at: capturedAt,
       });
+      // Put the new scan first so its results show immediately.
       setScans((prev) => [created, ...prev]);
+
+      // Show a fast local preview using the just-uploaded file while
+      // the backend image becomes available.
+      try {
+        const localUrl = window.URL.createObjectURL(file);
+        setScanImages((prev) => {
+          Object.values(prev).forEach((url) => {
+            if (url) {
+              window.URL.revokeObjectURL(url);
+            }
+          });
+          return { [created.id]: localUrl };
+        });
+      } catch {
+        // If anything goes wrong, we still fall back to the network fetch
+        // in the image-loading effect.
+      }
     } catch (err: any) {
       const msg = err?.message ?? "Failed to upload scan";
       if (msg === "Could not validate credentials") {
