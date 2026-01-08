@@ -44,6 +44,7 @@ export default function DashboardPage() {
 
   const token = auth.token;
   const userId = auth.user?.id;
+  const [statusLoaded, setStatusLoaded] = useState(false);
 
   useEffect(() => {
     if (!token || !userId) {
@@ -67,8 +68,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     getAiStatus()
-      .then(setStatus)
-      .catch(() => setStatus(null));
+      .then((s) => {
+        setStatus(s);
+        setStatusLoaded(true);
+      })
+      .catch(() => {
+        setStatus(null);
+        setStatusLoaded(true);
+      });
   }, []);
 
   useEffect(() => {
@@ -177,16 +184,29 @@ export default function DashboardPage() {
   }, [scans, token]);
 
   const modelBadge = useMemo(() => {
+    if (!statusLoaded) {
+      return { dot: "bad", text: "Checking AI brain..." } as const;
+    }
     if (!status) {
-      return { dot: "bad", text: "Unknown" } as const;
+      return { dot: "bad", text: "AI brain not ready" } as const;
     }
     if (status.available) {
       return { dot: "ok", text: "AI brain online" } as const;
     }
     return { dot: "bad", text: "AI brain not ready" } as const;
-  }, [status]);
+  }, [status, statusLoaded]);
 
-  const latestScan = scans.length > 0 ? scans[0] : null;
+  const dashboardScans = useMemo(
+    () =>
+      scans.filter((s) => {
+        const r: any = (s as any).result ?? null;
+        const t = r?.scan_type;
+        return !t || t === "dashboard";
+      }),
+    [scans]
+  );
+
+  const latestScan = dashboardScans.length > 0 ? dashboardScans[0] : null;
   const latestResult: any = latestScan ? (latestScan as any).result ?? null : null;
   const latestFieldHealth = latestResult?.field_health;
   const latestFieldHealthPercent =
@@ -521,58 +541,6 @@ export default function DashboardPage() {
             </form>
           </Card>
         </div>
-
-        <div>
-          <Card className="panel">
-            <div className="h2">Field health summary</div>
-            <div className="small" style={{ marginTop: 8 }}>
-              Overview from your most recent scan.
-            </div>
-
-            <div className="hr" />
-
-            {!latestScan || latestFieldHealthPercent === null ? (
-              <div className="small">Run a scan to see field health insights here.</div>
-            ) : (
-              <>
-                <div className="small">
-                  Latest scan: #{latestScan.id} ({formatTime(latestScan.created_at)})
-                </div>
-                {latestDrone ? (
-                  <div className="small" style={{ marginTop: 6 }}>
-                    Drone: {latestDrone.name || "—"} • Altitude: {latestDrone.altitude || "—"} •
-                    Duration: {latestDrone.flight_duration || "—"}
-                    {latestDrone.field_size ? ` • Field size: ${latestDrone.field_size}` : ""}
-                  </div>
-                ) : null}
-                <div className="small" style={{ marginTop: 8 }}>
-                  Field health: <strong>{latestFieldHealthPercent}%</strong>
-                </div>
-                <div className="health-bar">
-                  <div
-                    className={`health-bar-fill ${
-                      latestFieldHealthPercent >= 70
-                        ? "good"
-                        : latestFieldHealthPercent >= 40
-                        ? "medium"
-                        : "bad"
-                    }`}
-                    style={{ width: `${latestFieldHealthPercent}%` }}
-                  />
-                </div>
-                <div className="small" style={{ marginTop: 2 }}>
-                  Diseases detected: {latestDiseaseCount ?? "0"}
-                  {latestTotalDetections !== null ? ` / ${latestTotalDetections} detections` : ""}
-                </div>
-                {latestRecommendation ? (
-                  <div className="small" style={{ marginTop: 8 }}>
-                    Treatment plan: {latestRecommendation}
-                  </div>
-                ) : null}
-              </>
-            )}
-          </Card>
-        </div>
       </div>
 
       <Card className="panel scan-results-wide" style={{ marginTop: 20 }}>
@@ -590,6 +558,49 @@ export default function DashboardPage() {
             <div>
               <div className="scan-title">Scan #{latestScan.id}</div>
               <div className="small">{formatTime(latestScan.created_at)}</div>
+              <div className="small" style={{ marginTop: 8, fontWeight: 600 }}>
+                Field health summary
+              </div>
+              {latestFieldHealthPercent === null ? (
+                <div className="small" style={{ marginTop: 4 }}>
+                  Run a scan to see field health insights here.
+                </div>
+              ) : (
+                <>
+                  {latestDrone ? (
+                    <div className="small" style={{ marginTop: 4 }}>
+                      Drone: {latestDrone.name || "—"} • Altitude: {latestDrone.altitude || "—"} •
+                      Duration: {latestDrone.flight_duration || "—"}
+                      {latestDrone.field_size ? ` • Field size: ${latestDrone.field_size}` : ""}
+                    </div>
+                  ) : null}
+                  <div className="small" style={{ marginTop: 4 }}>
+                    Field health: <strong>{latestFieldHealthPercent}%</strong>
+                  </div>
+                  <div className="health-bar">
+                    <div
+                      className={`health-bar-fill ${
+                        latestFieldHealthPercent >= 70
+                          ? "good"
+                          : latestFieldHealthPercent >= 40
+                          ? "medium"
+                          : "bad"
+                      }`}
+                      style={{ width: `${latestFieldHealthPercent}%` }}
+                    />
+                  </div>
+                  <div className="small" style={{ marginTop: 2 }}>
+                    Diseases detected: {latestDiseaseCount ?? "0"}
+                    {latestTotalDetections !== null ? ` / ${latestTotalDetections} detections` : ""}
+                  </div>
+                  {latestRecommendation ? (
+                    <div className="small" style={{ marginTop: 8 }}>
+                      Treatment plan: {latestRecommendation}
+                    </div>
+                  ) : null}
+                </>
+              )}
+              <div className="hr" style={{ marginTop: 10, marginBottom: 10 }} />
               <div className="small" style={{ marginTop: 6 }}>
                 Detections: {Array.isArray(latestResult?.detections) ? latestResult.detections.length : 0}
               </div>

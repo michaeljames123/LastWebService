@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import mimetypes
 import os
@@ -324,6 +325,19 @@ def _safe_tensor_to_list(x: Any) -> Any:
     return x
 
 
+def _encode_image_b64(image_path: str) -> str | None:
+    try:
+        with open(image_path, "rb") as f:
+            raw = f.read()
+        mime, _ = mimetypes.guess_type(image_path)
+        if not mime:
+            mime = "image/jpeg"
+        b64 = base64.b64encode(raw).decode("ascii")
+        return f"data:{mime};base64,{b64}"
+    except Exception:
+        return None
+
+
 def predict_image(image_path: str) -> dict[str, Any]:
     base_url = _remote_base_url()
     if base_url:
@@ -387,9 +401,17 @@ def predict_image(image_path: str) -> dict[str, Any]:
                 annotated_error = str(e)
                 annotated_filename = None
 
-            out: dict[str, Any] = {"detections": detections, "names": names, "source": "remote"}
+            image_b64: str | None = None
             if isinstance(data, dict) and "image" in data:
-                out["image"] = data.get("image")
+                val = data.get("image")
+                if isinstance(val, str) and val.strip():
+                    image_b64 = val.strip()
+
+            out: dict[str, Any] = {"detections": detections, "names": names, "source": "remote"}
+            if image_b64 is None:
+                image_b64 = _encode_image_b64(image_path)
+            if image_b64 is not None:
+                out["image"] = image_b64
             if isinstance(meta, dict):
                 out["meta"] = meta
             if annotated_filename:
@@ -405,7 +427,11 @@ def predict_image(image_path: str) -> dict[str, Any]:
     model = _get_yolo_model()
     results = model.predict(source=image_path, verbose=False)
     if not results:
-        return {"detections": [], "names": {}}
+        image_b64 = _encode_image_b64(image_path)
+        out_empty: dict[str, Any] = {"detections": [], "names": {}}
+        if image_b64 is not None:
+            out_empty["image"] = image_b64
+        return out_empty
 
     first = results[0]
 
@@ -416,7 +442,14 @@ def predict_image(image_path: str) -> dict[str, Any]:
                 detections = json.loads(raw)
             except Exception:
                 detections = raw
-            return {"detections": detections, "names": getattr(first, "names", {})}
+            image_b64 = _encode_image_b64(image_path)
+            out_local: dict[str, Any] = {
+                "detections": detections,
+                "names": getattr(first, "names", {}),
+            }
+            if image_b64 is not None:
+                out_local["image"] = image_b64
+            return out_local
         except Exception:
             pass
 
@@ -441,4 +474,8 @@ def predict_image(image_path: str) -> dict[str, Any]:
                     }
                 )
 
-    return {"detections": detections, "names": names}
+    image_b64 = _encode_image_b64(image_path)
+    out_final: dict[str, Any] = {"detections": detections, "names": names}
+    if image_b64 is not None:
+        out_final["image"] = image_b64
+    return out_final
