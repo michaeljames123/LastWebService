@@ -19,6 +19,7 @@ export default function EstimateFieldPage() {
   const [annotatedBlobUrl, setAnnotatedBlobUrl] = useState<string | null>(null);
   const [originalBlobUrl, setOriginalBlobUrl] = useState<string | null>(null);
   const [showBoxes, setShowBoxes] = useState(true);
+  const [altitude, setAltitude] = useState<string>("");
 
   useEffect(() => {
     // Clear any previous in-memory state whenever the authenticated user changes
@@ -101,8 +102,16 @@ export default function EstimateFieldPage() {
     setOriginalBlobUrl(null);
     setShowBoxes(true);
 
+    let altitudeMeters: number | undefined = undefined;
+    if (altitude.trim()) {
+      const parsed = Number(altitude.trim());
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        altitudeMeters = parsed;
+      }
+    }
+
     try {
-      const res = await estimateField(token, file);
+      const res = await estimateField(token, file, altitudeMeters);
       setResult(res);
       try {
         if (userId) {
@@ -167,6 +176,27 @@ export default function EstimateFieldPage() {
   const yieldSummary =
     typeof yieldEstimate?.summary === "string" ? yieldEstimate.summary : null;
 
+  const fieldArea = result?.field_area && typeof result.field_area === "object"
+    ? (result.field_area as any)
+    : null;
+
+  const fieldAltitude =
+    fieldArea && typeof fieldArea.altitude_m === "number"
+      ? fieldArea.altitude_m
+      : null;
+  const fieldWidthM =
+    fieldArea && typeof fieldArea.width_m === "number" ? fieldArea.width_m : null;
+  const fieldHeightM =
+    fieldArea && typeof fieldArea.height_m === "number" ? fieldArea.height_m : null;
+  const fieldAreaM2 =
+    fieldArea && typeof fieldArea.area_m2 === "number" ? fieldArea.area_m2 : null;
+  const fieldAreaHa =
+    fieldArea && typeof fieldArea.area_hectares === "number"
+      ? fieldArea.area_hectares
+      : null;
+  const fieldAreaAcres =
+    fieldArea && typeof fieldArea.area_acres === "number" ? fieldArea.area_acres : null;
+
   const hasDetections = predCount > 0;
 
   let displayImageUrl: string | null = null;
@@ -181,6 +211,7 @@ export default function EstimateFieldPage() {
     setError(null);
     setResult(null);
     setShowBoxes(true);
+    setAltitude("");
 
     setAnnotatedBlobUrl((prev) => {
       if (prev) {
@@ -229,6 +260,18 @@ export default function EstimateFieldPage() {
             accept="image/*"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
+          <label className="field" style={{ marginTop: 10 }}>
+            <span className="field-label">Drone altitude (meters)</span>
+            <input
+              className="input"
+              type="number"
+              min="0"
+              step="0.1"
+              value={altitude}
+              onChange={(e) => setAltitude(e.target.value)}
+              placeholder="e.g. 25"
+            />
+          </label>
           {error ? <div className="notice bad">{error}</div> : null}
           <div className="form-actions">
             <Button type="submit" disabled={busy}>
@@ -309,6 +352,36 @@ export default function EstimateFieldPage() {
                   {yieldSummary ? (
                     <div className="small" style={{ marginTop: 8 }}>
                       {yieldSummary}
+                    </div>
+                  ) : null}
+                  {fieldAreaM2 !== null && fieldAreaHa !== null && fieldAreaAcres !== null ? (
+                    <div className="estimate-metric-bars" style={{ marginTop: 8 }}>
+                      <div className="metric-bar">
+                        <div className="metric-bar-header">
+                          <span>Estimated footprint (m²)</span>
+                          <span>{fieldAreaM2.toFixed(0)}</span>
+                        </div>
+                      </div>
+                      <div className="metric-bar">
+                        <div className="metric-bar-header">
+                          <span>Estimated area (hectares)</span>
+                          <span>{fieldAreaHa.toFixed(3)}</span>
+                        </div>
+                      </div>
+                      <div className="metric-bar">
+                        <div className="metric-bar-header">
+                          <span>Estimated area (acres)</span>
+                          <span>{fieldAreaAcres.toFixed(3)}</span>
+                        </div>
+                      </div>
+                      {fieldAltitude !== null && (fieldWidthM !== null || fieldHeightM !== null) ? (
+                        <div className="small" style={{ marginTop: 6 }}>
+                          Calculated assuming altitude of approximately {fieldAltitude.toFixed(1)} m
+                          {fieldWidthM !== null && fieldHeightM !== null
+                            ? ` and image footprint about ${fieldWidthM.toFixed(1)} m × ${fieldHeightM.toFixed(1)} m.`
+                            : "."}
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                   {hasDetections &&

@@ -139,9 +139,13 @@ export function createScan(token: string, input: CreateScanInput): Promise<Scan>
   });
 }
 
-export function estimateField(token: string, file: File): Promise<any> {
+export function estimateField(token: string, file: File, altitudeMeters?: number): Promise<any> {
   const form = new FormData();
   form.append("file", file);
+
+  if (typeof altitudeMeters === "number" && !Number.isNaN(altitudeMeters) && altitudeMeters > 0) {
+    form.append("altitude_m", String(altitudeMeters));
+  }
 
   return request<any>("/api/estimate-field/", {
     method: "POST",

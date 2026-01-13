@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import shutil
 import uuid
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -366,9 +367,56 @@ def _compute_yield_estimate(
     }
 
 
+def _compute_field_area_from_image(*, image_path: str, altitude_m: float | None) -> dict[str, Any] | None:
+    """Approximate the ground area covered by the image given the flight altitude.
+
+    This uses a simplified pinhole camera model with an assumed horizontal FOV of
+    ~100 degrees for the LYZRC L200 drone. The calculation is approximate and
+    intended for agronomic estimates rather than survey-grade mapping.
+    """
+
+    if altitude_m is None or altitude_m <= 0:
+        return None
+
+    try:
+        Image, _, _ = _require_pillow()
+        img = Image.open(image_path).convert("RGB")
+        width_px, height_px = img.size
+        if width_px <= 0 or height_px <= 0:
+            return None
+
+        # Assumed horizontal field of view for the L200 camera.
+        hfov_deg = 100.0
+        hfov_rad = math.radians(hfov_deg)
+        hfov_half = hfov_rad / 2.0
+
+        # Derive an approximate vertical FOV from the image aspect ratio.
+        aspect_h_over_w = height_px / float(width_px)
+        vfov_half = math.atan(math.tan(hfov_half) * aspect_h_over_w)
+
+        width_m = 2.0 * altitude_m * math.tan(hfov_half)
+        height_m = 2.0 * altitude_m * math.tan(vfov_half)
+        area_m2 = width_m * height_m
+
+        return {
+            "altitude_m": float(altitude_m),
+            "width_m": width_m,
+            "height_m": height_m,
+            "area_m2": area_m2,
+            "area_hectares": area_m2 / 10_000.0,
+            "area_acres": area_m2 / 4_046.86,
+            "camera_model": "LYZRC L200 (approximate)",
+            "notes": "Approximate area assuming ~100° horizontal FOV and nadir view.",
+        }
+    except Exception:
+        # If anything goes wrong, area estimation should not break the endpoint.
+        return None
+
+
 @router.post("/")
 async def estimate_field(
     file: UploadFile = File(...),
+    altitude_m: float | None = Form(None),
     current_user: User = Depends(deps.get_current_active_user),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
@@ -415,6 +463,12 @@ async def estimate_field(
 
     yield_estimate = _compute_yield_estimate(predictions, image_path=original_path)
 
+    # Optional approximate field area estimate using altitude and camera FOV
+    field_area = _compute_field_area_from_image(
+        image_path=original_path,
+        altitude_m=altitude_m,
+    )
+
     annotated_filename = f"{stem}_rf.jpg"
     annotated_path = os.path.join(settings.UPLOAD_DIR, annotated_filename)
 
@@ -436,6 +490,7 @@ async def estimate_field(
         "predictions": predictions,
         "raw": raw,
         "yield_estimate": yield_estimate,
+        "field_area": field_area,
         "annotated_image_filename": annotated_filename,
         "annotated_image_url": f"{settings.API_V1_STR}/estimate-field/image/{annotated_filename}",
         "original_image_filename": original_filename,
