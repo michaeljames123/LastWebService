@@ -21,6 +21,7 @@ export default function EstimateFieldPage() {
   const [showBoxes, setShowBoxes] = useState(true);
   const [altitude, setAltitude] = useState<string>("");
   const [confidenceThreshold, setConfidenceThreshold] = useState<number>(40);
+  const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
 
   useEffect(() => {
     // Clear any previous in-memory state whenever the authenticated user changes
@@ -102,6 +103,7 @@ export default function EstimateFieldPage() {
     setAnnotatedBlobUrl(null);
     setOriginalBlobUrl(null);
     setShowBoxes(true);
+    setImageSize(null);
 
     let altitudeMeters: number | undefined = undefined;
     if (altitude.trim()) {
@@ -220,14 +222,102 @@ export default function EstimateFieldPage() {
   const fieldAreaAcres =
     fieldArea && typeof fieldArea.area_acres === "number" ? fieldArea.area_acres : null;
 
+  const rawImageMeta: any =
+    result && typeof result === "object" && (result as any).raw && typeof (result as any).raw === "object"
+      ? (result as any).raw.image ?? null
+      : null;
+  const imageMetaWidth =
+    rawImageMeta && typeof rawImageMeta.width === "number" ? rawImageMeta.width : null;
+  const imageMetaHeight =
+    rawImageMeta && typeof rawImageMeta.height === "number" ? rawImageMeta.height : null;
+
+  type OverlayBox = {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    confidence: number | null;
+  };
+
+  const overlayBoxes: OverlayBox[] = rawPredictions
+    .filter((p) => p && typeof p === "object")
+    .map((p: any) => {
+      let x1: number;
+      let y1: number;
+      let x2: number;
+      let y2: number;
+
+      if (Array.isArray(p.bbox) && p.bbox.length === 4) {
+        const [bx1, by1, bx2, by2] = p.bbox as any[];
+        x1 = Number(bx1);
+        y1 = Number(by1);
+        x2 = Number(bx2);
+        y2 = Number(by2);
+      } else if (
+        Object.prototype.hasOwnProperty.call(p, "x1") &&
+        Object.prototype.hasOwnProperty.call(p, "y1") &&
+        Object.prototype.hasOwnProperty.call(p, "x2") &&
+        Object.prototype.hasOwnProperty.call(p, "y2")
+      ) {
+        x1 = Number(p.x1);
+        y1 = Number(p.y1);
+        x2 = Number(p.x2);
+        y2 = Number(p.y2);
+      } else if (
+        Object.prototype.hasOwnProperty.call(p, "x") &&
+        Object.prototype.hasOwnProperty.call(p, "y") &&
+        Object.prototype.hasOwnProperty.call(p, "width") &&
+        Object.prototype.hasOwnProperty.call(p, "height")
+      ) {
+        const cx = Number(p.x);
+        const cy = Number(p.y);
+        const w = Number(p.width);
+        const h = Number(p.height);
+        x1 = cx - w / 2;
+        y1 = cy - h / 2;
+        x2 = cx + w / 2;
+        y2 = cy + h / 2;
+      } else {
+        return null;
+      }
+
+      if (!Number.isFinite(x1) || !Number.isFinite(y1) || !Number.isFinite(x2) || !Number.isFinite(y2)) {
+        return null;
+      }
+
+      // Clamp to image bounds if metadata is available to avoid boxes far outside the frame.
+      if (imageMetaWidth && imageMetaHeight) {
+        x1 = Math.max(0, Math.min(imageMetaWidth, x1));
+        y1 = Math.max(0, Math.min(imageMetaHeight, y1));
+        x2 = Math.max(0, Math.min(imageMetaWidth, x2));
+        y2 = Math.max(0, Math.min(imageMetaHeight, y2));
+      }
+
+      if (x2 <= x1 || y2 <= y1) {
+        return null;
+      }
+
+      let confidence: number | null = null;
+      if (typeof p.confidence === "number") {
+        confidence = p.confidence;
+      } else if (typeof p.confidence === "string") {
+        const parsed = parseFloat(p.confidence);
+        confidence = Number.isFinite(parsed) ? parsed : null;
+      }
+
+      return { x1, y1, x2, y2, confidence };
+    })
+    .filter((b): b is OverlayBox => !!b);
+
+  const visibleOverlayBoxes = overlayBoxes.filter((b) => {
+    if (b.confidence == null) return true;
+    return b.confidence * 100 >= confidenceThreshold;
+  });
+
   const hasDetections = totalPredCount > 0;
 
   let displayImageUrl: string | null = null;
-  if (showBoxes) {
-    displayImageUrl = annotatedBlobUrl || originalBlobUrl;
-  } else {
-    displayImageUrl = originalBlobUrl || annotatedBlobUrl;
-  }
+  displayImageUrl = originalBlobUrl || annotatedBlobUrl;
 
   function resetEstimate() {
     setFile(null);
@@ -236,6 +326,7 @@ export default function EstimateFieldPage() {
     setShowBoxes(true);
     setAltitude("");
     setConfidenceThreshold(40);
+    setImageSize(null);
 
     setAnnotatedBlobUrl((prev) => {
       if (prev) {
@@ -333,11 +424,39 @@ export default function EstimateFieldPage() {
             </div>
 
             {displayImageUrl ? (
-              <img
-                src={displayImageUrl}
-                alt={showBoxes && annotatedBlobUrl ? "Annotated result" : "Original image"}
-                className="estimate-main-image"
-              />
+              <div className="scan-image-wrapper">
+                <img
+                  src={displayImageUrl}
+                  alt={showBoxes && annotatedBlobUrl ? "Annotated result" : "Original image"}
+                  className="estimate-main-image"
+                  onLoad={(e) => {
+                    const img = e.currentTarget;
+                    if (img.naturalWidth && img.naturalHeight) {
+                      setImageSize({ width: img.naturalWidth, height: img.naturalHeight });
+                    }
+                  }}
+                />
+                {showBoxes && imageSize && visibleOverlayBoxes.length > 0 ? (
+                  <svg
+                    className="scan-overlay"
+                    viewBox={`0 0 ${imageSize.width} ${imageSize.height}`}
+                    preserveAspectRatio="xMidYMid meet"
+                  >
+                    {visibleOverlayBoxes.map((b, idx) => (
+                      <rect
+                        key={idx}
+                        x={b.x1}
+                        y={b.y1}
+                        width={b.x2 - b.x1}
+                        height={b.y2 - b.y1}
+                        fill="rgba(0, 200, 83, 0.18)"
+                        stroke="rgba(0, 230, 118, 0.95)"
+                        strokeWidth={3}
+                      />
+                    ))}
+                  </svg>
+                ) : null}
+              </div>
             ) : (
               <div className="small">Result image will appear here after analysis.</div>
             )}
