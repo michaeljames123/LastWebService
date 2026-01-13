@@ -220,14 +220,48 @@ export default function EstimateFieldPage() {
   const fieldAreaAcres =
     fieldArea && typeof fieldArea.area_acres === "number" ? fieldArea.area_acres : null;
 
+  const overlayBoxesRaw: any[] = Array.isArray(result?.overlay_boxes)
+    ? (result.overlay_boxes as any[])
+    : [];
+
+  const overlayBoxes = overlayBoxesRaw
+    .filter((b) => b && typeof b === "object")
+    .map((b: any) => {
+      const x1 = Number(b.x1);
+      const y1 = Number(b.y1);
+      const x2 = Number(b.x2);
+      const y2 = Number(b.y2);
+
+      let confidence: number | null = null;
+      if (typeof b.confidence === "number") {
+        confidence = b.confidence;
+      } else if (typeof b.confidence === "string") {
+        const parsed = parseFloat(b.confidence);
+        confidence = Number.isFinite(parsed) ? parsed : null;
+      }
+
+      const label = String(b.label ?? "object").toLowerCase();
+
+      if (!Number.isFinite(x1) || !Number.isFinite(y1) || !Number.isFinite(x2) || !Number.isFinite(y2)) {
+        return null;
+      }
+      if (x2 <= x1 || y2 <= y1) {
+        return null;
+      }
+
+      return { x1, y1, x2, y2, label, confidence };
+    })
+    .filter((b): b is { x1: number; y1: number; x2: number; y2: number; label: string; confidence: number | null } => !!b);
+
+  const visibleOverlayBoxes = overlayBoxes.filter((b) => {
+    if (b.confidence == null) return true;
+    return b.confidence * 100 >= confidenceThreshold;
+  });
+
   const hasDetections = totalPredCount > 0;
 
   let displayImageUrl: string | null = null;
-  if (showBoxes) {
-    displayImageUrl = annotatedBlobUrl || originalBlobUrl;
-  } else {
-    displayImageUrl = originalBlobUrl || annotatedBlobUrl;
-  }
+  displayImageUrl = originalBlobUrl || annotatedBlobUrl;
 
   function resetEstimate() {
     setFile(null);
@@ -333,11 +367,29 @@ export default function EstimateFieldPage() {
             </div>
 
             {displayImageUrl ? (
-              <img
-                src={displayImageUrl}
-                alt={showBoxes && annotatedBlobUrl ? "Annotated result" : "Original image"}
-                className="estimate-main-image"
-              />
+              <div className="scan-image-wrapper">
+                <img
+                  src={displayImageUrl}
+                  alt={showBoxes ? "Annotated result" : "Original image"}
+                  className="estimate-main-image"
+                />
+                {showBoxes && visibleOverlayBoxes.length > 0 ? (
+                  <svg className="scan-overlay" viewBox="0 0 1 1" preserveAspectRatio="none">
+                    {visibleOverlayBoxes.map((b, idx) => (
+                      <rect
+                        key={idx}
+                        x={b.x1}
+                        y={b.y1}
+                        width={b.x2 - b.x1}
+                        height={b.y2 - b.y1}
+                        fill="rgba(0, 200, 83, 0.18)"
+                        stroke="rgba(0, 230, 118, 0.95)"
+                        strokeWidth={0.003}
+                      />
+                    ))}
+                  </svg>
+                ) : null}
+              </div>
             ) : (
               <div className="small">Result image will appear here after analysis.</div>
             )}
