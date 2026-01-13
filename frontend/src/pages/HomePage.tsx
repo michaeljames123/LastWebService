@@ -34,8 +34,7 @@ export default function HomePage() {
             </h1>
             <p className="p" style={{ marginTop: 14, maxWidth: 620 }}>
               AgridroneScan connects drone imagery, smart detection, and field reports into one
-              agriculture-focused dashboard. Plug in your Google Colab-trained model ({"best.pt"})
-              and start analyzing crop conditions.
+              agriculture-focused dashboard and start analyzing crop conditions.
             </p>
 
             <div className="hero-actions">
