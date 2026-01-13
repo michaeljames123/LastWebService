@@ -413,72 +413,6 @@ def _compute_field_area_from_image(*, image_path: str, altitude_m: float | None)
         return None
 
 
-def _normalized_overlay_boxes(*, image_path: str, predictions: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Extract normalized bounding boxes for client-side overlays.
-
-    Boxes are returned in image-relative coordinates (0-1) together with
-    label and confidence so the frontend can render and threshold them.
-    """
-
-    try:
-        Image, _, _ = _require_pillow()
-        img = Image.open(image_path).convert("RGB")
-        width, height = img.size
-        if width <= 0 or height <= 0:
-            return []
-
-        out: list[dict[str, Any]] = []
-        for p in predictions:
-            if not isinstance(p, dict):
-                continue
-
-            xyxy = _xyxy_from_pred(p)
-            if not xyxy:
-                continue
-
-            x1, y1, x2, y2 = xyxy
-            x1 = max(0.0, min(float(width - 1), x1))
-            y1 = max(0.0, min(float(height - 1), y1))
-            x2 = max(0.0, min(float(width - 1), x2))
-            y2 = max(0.0, min(float(height - 1), y2))
-            if x2 <= x1 or y2 <= y1:
-                continue
-
-            nx1 = x1 / float(width)
-            ny1 = y1 / float(height)
-            nx2 = x2 / float(width)
-            ny2 = y2 / float(height)
-
-            label = (
-                p.get("class")
-                or p.get("class_name")
-                or p.get("label")
-                or p.get("name")
-                or "object"
-            )
-
-            conf = p.get("confidence")
-            try:
-                conf_f = float(conf)
-            except Exception:
-                conf_f = None
-
-            out.append(
-                {
-                    "x1": nx1,
-                    "y1": ny1,
-                    "x2": nx2,
-                    "y2": ny2,
-                    "label": str(label),
-                    "confidence": conf_f,
-                }
-            )
-
-        return out
-    except Exception:
-        return []
-
-
 @router.post("/")
 async def estimate_field(
     file: UploadFile = File(...),
@@ -535,8 +469,6 @@ async def estimate_field(
         altitude_m=altitude_m,
     )
 
-    overlay_boxes = _normalized_overlay_boxes(image_path=original_path, predictions=predictions)
-
     annotated_filename = f"{stem}_rf.jpg"
     annotated_path = os.path.join(settings.UPLOAD_DIR, annotated_filename)
 
@@ -559,7 +491,6 @@ async def estimate_field(
         "raw": raw,
         "yield_estimate": yield_estimate,
         "field_area": field_area,
-        "overlay_boxes": overlay_boxes,
         "annotated_image_filename": annotated_filename,
         "annotated_image_url": f"{settings.API_V1_STR}/estimate-field/image/{annotated_filename}",
         "original_image_filename": original_filename,
