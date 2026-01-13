@@ -20,6 +20,7 @@ export default function EstimateFieldPage() {
   const [originalBlobUrl, setOriginalBlobUrl] = useState<string | null>(null);
   const [showBoxes, setShowBoxes] = useState(true);
   const [altitude, setAltitude] = useState<string>("");
+  const [confidenceThreshold, setConfidenceThreshold] = useState<number>(40);
 
   useEffect(() => {
     // Clear any previous in-memory state whenever the authenticated user changes
@@ -141,17 +142,39 @@ export default function EstimateFieldPage() {
     }
   }
 
-  const predictions = Array.isArray(result?.predictions) ? result.predictions : [];
-  const predCount = predictions.length;
+  const rawPredictions: any[] = Array.isArray(result?.predictions) ? result.predictions : [];
+
+  const parsedPredictions = rawPredictions
+    .filter((p) => p && typeof p === "object")
+    .map((p: any) => {
+      const label = String(
+        p.class ?? p.class_name ?? p.label ?? p.name ?? ""
+      ).toLowerCase();
+
+      let confidence: number | null = null;
+      if (typeof p.confidence === "number") {
+        confidence = p.confidence;
+      } else if (typeof p.confidence === "string") {
+        const parsed = parseFloat(p.confidence);
+        confidence = Number.isFinite(parsed) ? parsed : null;
+      }
+
+      return { label, confidence };
+    });
+
+  const filteredPredictions = parsedPredictions.filter((p) => {
+    if (p.confidence == null) {
+      return true;
+    }
+    return p.confidence * 100 >= confidenceThreshold;
+  });
+
+  const totalPredCount = parsedPredictions.length;
+  const predCount = filteredPredictions.length;
 
   let cornCount = 0;
-  for (const p of predictions) {
-    if (!p || typeof p !== "object") continue;
-    const anyPred = p as any;
-    const label = String(
-      anyPred.class ?? anyPred.class_name ?? anyPred.label ?? ""
-    ).toLowerCase();
-    if (label.includes("corn")) {
+  for (const p of filteredPredictions) {
+    if (p.label.includes("corn")) {
       cornCount += 1;
     }
   }
@@ -197,7 +220,7 @@ export default function EstimateFieldPage() {
   const fieldAreaAcres =
     fieldArea && typeof fieldArea.area_acres === "number" ? fieldArea.area_acres : null;
 
-  const hasDetections = predCount > 0;
+  const hasDetections = totalPredCount > 0;
 
   let displayImageUrl: string | null = null;
   if (showBoxes) {
@@ -212,6 +235,7 @@ export default function EstimateFieldPage() {
     setResult(null);
     setShowBoxes(true);
     setAltitude("");
+    setConfidenceThreshold(40);
 
     setAnnotatedBlobUrl((prev) => {
       if (prev) {
@@ -349,6 +373,28 @@ export default function EstimateFieldPage() {
                       </div>
                     ) : null}
                   </div>
+                  <div className="estimate-metric-row" style={{ marginTop: 10 }}>
+                    <div className="scan-slider">
+                      <div className="scan-slider-header">
+                        <span className="small">Confidence Threshold:</span>
+                        <span className="small" style={{ fontWeight: 600 }}>
+                          {confidenceThreshold}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={confidenceThreshold}
+                        onChange={(e) => setConfidenceThreshold(Number(e.target.value))}
+                        className="scan-slider-range"
+                      />
+                      <div className="scan-slider-footer">
+                        <span>0%</span>
+                        <span>100%</span>
+                      </div>
+                    </div>
+                  </div>
                   {yieldSummary ? (
                     <div className="small" style={{ marginTop: 8 }}>
                       {yieldSummary}
@@ -359,19 +405,40 @@ export default function EstimateFieldPage() {
                       <div className="metric-bar">
                         <div className="metric-bar-header">
                           <span>Estimated footprint (m²)</span>
-                          <span>{fieldAreaM2.toFixed(0)}</span>
+                          <span
+                            style={{
+                              fontWeight: 600,
+                              color: "#1e88e5", // blue highlight
+                            }}
+                          >
+                            {fieldAreaM2.toFixed(0)}
+                          </span>
                         </div>
                       </div>
                       <div className="metric-bar">
                         <div className="metric-bar-header">
                           <span>Estimated area (hectares)</span>
-                          <span>{fieldAreaHa.toFixed(3)}</span>
+                          <span
+                            style={{
+                              fontWeight: 600,
+                              color: "#2e7d32", // green highlight
+                            }}
+                          >
+                            {fieldAreaHa.toFixed(3)}
+                          </span>
                         </div>
                       </div>
                       <div className="metric-bar">
                         <div className="metric-bar-header">
                           <span>Estimated area (acres)</span>
-                          <span>{fieldAreaAcres.toFixed(3)}</span>
+                          <span
+                            style={{
+                              fontWeight: 600,
+                              color: "#f9a825", // amber highlight
+                            }}
+                          >
+                            {fieldAreaAcres.toFixed(3)}
+                          </span>
                         </div>
                       </div>
                       {fieldAltitude !== null && (fieldWidthM !== null || fieldHeightM !== null) ? (
