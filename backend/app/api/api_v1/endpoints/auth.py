@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -26,6 +26,29 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)) -> UserOut:
         username=user_in.username,
         password=user_in.password,
         full_name=user_in.full_name,
+    )
+    return user
+
+
+@router.post("/register-simple", response_model=UserOut)
+def register_simple(
+    email: str = Form(...),
+    username: str = Form(...),
+    password: str = Form(...),
+    full_name: str | None = Form(None),
+    db: Session = Depends(get_db),
+) -> UserOut:
+    if get_user_by_email(db, email) is not None:
+        raise HTTPException(status_code=400, detail="Email is already registered")
+    if get_user_by_username(db, username) is not None:
+        raise HTTPException(status_code=400, detail="Username is already taken")
+
+    user = create_user(
+        db,
+        email=email,
+        username=username,
+        password=password,
+        full_name=full_name,
     )
     return user
 
