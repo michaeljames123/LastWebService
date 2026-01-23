@@ -52,20 +52,12 @@ export type RegisterInput = {
 };
 
 export function registerUser(input: RegisterInput): Promise<User> {
-  const body = new URLSearchParams();
-  body.set("email", input.email);
-  body.set("username", input.username);
-  if (input.full_name) {
-    body.set("full_name", input.full_name);
-  }
-  body.set("password", input.password);
-
-  return request<User>("/api/auth/register-simple", {
+  return request<User>("/api/auth/register", {
     method: "POST",
     headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Type": "application/json",
     },
-    body,
+    body: JSON.stringify(input),
   });
 }
 
