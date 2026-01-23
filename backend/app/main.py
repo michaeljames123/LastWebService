@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import os
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Request
+from fastapi.responses import Response
 
 from app.api.api_v1 import api_router
 from app.core.config import settings
@@ -16,13 +16,28 @@ import app.models
 def create_app() -> FastAPI:
     app = FastAPI(title=settings.PROJECT_NAME)
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=False,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    @app.middleware("http")
+    async def cors_middleware(request: Request, call_next):
+        if request.method == "OPTIONS":
+            response = Response(status_code=200)
+        else:
+            response = await call_next(request)
+
+        origin = request.headers.get("origin")
+        if origin:
+            response.headers["Access-Control-Allow-Origin"] = origin
+        else:
+            response.headers["Access-Control-Allow-Origin"] = "*"
+
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        request_headers = request.headers.get("Access-Control-Request-Headers")
+        if request_headers:
+            response.headers["Access-Control-Allow-Headers"] = request_headers
+        else:
+            response.headers["Access-Control-Allow-Headers"] = "*"
+
+        response.headers["Access-Control-Allow-Credentials"] = "false"
+        return response
 
     @app.get("/health")
     def health() -> dict:
